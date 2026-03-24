@@ -1,0 +1,13 @@
+# Scaleway Medical AI Lab - Example Variables
+# Copy this file to terraform.tfvars and fill in your values:
+#   cp terraform.tfvars.example terraform.tfvars
+
+scw_access_key = "SCWXXXXXXXXXXXXXXXXX"
+scw_secret_key = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+scw_project_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Your unique student identifier (lowercase, no spaces)
+student_id = "student-01"
+
+# Password for the PostgreSQL lab_user (minimum 12 characters)
+db_password = "ChangeMe12345!"
