@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Agent — Scaleway Medical AI Lab</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🔬</text></svg>">
+</head>
+<body>
+
+    <!-- ============================================================
+         HEADER
+         ============================================================ -->
+    <header class="header">
+        <div class="header__left">
+            <img src="https://www.scaleway.com/_next/static/media/logo.7e2996cb.svg" alt="Scaleway" class="header__brand-scw">
+            <img src="https://cloudaura.io/logo_white.png" alt="cloudaura.io" class="header__brand-ca">
+        </div>
+        <div class="header__center">
+            <span class="header__title">RESEARCH AGENT</span>
+            <span class="header__status-dot" id="status-dot"></span>
+            <span class="header__status-label" id="status-label">IDLE</span>
+        </div>
+        <div class="header__right">
+            <span class="header__subtitle">Cross-domain Medical Intelligence</span>
+        </div>
+        <div class="header__gradient-line"></div>
+    </header>
+
+    <!-- ============================================================
+         MAIN CONTENT
+         ============================================================ -->
+    <main class="container">
+
+        <!-- Query Section -->
+        <section class="query-section">
+            <div class="query-section__label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c40ef" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                QUERY
+            </div>
+            <div class="query-input-wrapper">
+                <textarea
+                    id="query-input"
+                    class="query-textarea"
+                    rows="3"
+                    placeholder="Enter a medical research question across pharmacology, cardiology, and clinical trials..."
+                ></textarea>
+                <button id="btn-run" class="btn-run">
+                    <span class="btn-run__icon">&#9889;</span>
+                    <span class="btn-run__text">Run Agent</span>
+                </button>
+            </div>
+            <div class="sample-queries" id="sample-queries">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- Domain Visualization Area -->
+        <section class="domains-section">
+            <div class="domains-section__label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c40ef" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                KNOWLEDGE DOMAINS
+            </div>
+
+            <!-- SVG Canvas for beams and connections -->
+            <div class="domains-canvas" id="domains-canvas">
+                <svg class="domains-svg" id="domains-svg" viewBox="0 0 900 200" preserveAspectRatio="xMidYMid meet">
+                    <!-- Defs for gradients and filters -->
+                    <defs>
+                        <linearGradient id="beam-gradient-purple" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#8c40ef" stop-opacity="0"/>
+                            <stop offset="50%" stop-color="#b824f9" stop-opacity="1"/>
+                            <stop offset="100%" stop-color="#8c40ef" stop-opacity="0"/>
+                        </linearGradient>
+                        <linearGradient id="beam-gradient-cyan" x1="100%" y1="0%" x2="0%" y2="0%">
+                            <stop offset="0%" stop-color="#03cfda" stop-opacity="0"/>
+                            <stop offset="50%" stop-color="#03cfda" stop-opacity="1"/>
+                            <stop offset="100%" stop-color="#03cfda" stop-opacity="0"/>
+                        </linearGradient>
+                        <filter id="glow-purple">
+                            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                        <filter id="glow-cyan">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+
+                    <!-- Connection lines (dashed) -->
+                    <line class="domain-connection" id="conn-left" x1="225" y1="100" x2="450" y2="100" />
+                    <line class="domain-connection" id="conn-right" x1="450" y1="100" x2="675" y2="100" />
+
+                    <!-- Beam elements (hidden by default) -->
+                    <line class="beam beam--out" id="beam-pharmacology" x1="450" y1="100" x2="225" y2="100" />
+                    <line class="beam beam--out" id="beam-cardiology-l" x1="450" y1="100" x2="450" y2="100" />
+                    <line class="beam beam--out" id="beam-clinical_trials" x1="450" y1="100" x2="675" y2="100" />
+
+                    <!-- Particle containers (JS adds particles here) -->
+                    <g id="particles-layer"></g>
+
+                    <!-- Brain pulse rings (center) -->
+                    <circle class="brain-ring brain-ring--1" cx="450" cy="100" r="20" id="brain-ring-1"/>
+                    <circle class="brain-ring brain-ring--2" cx="450" cy="100" r="20" id="brain-ring-2"/>
+                    <circle class="brain-ring brain-ring--3" cx="450" cy="100" r="20" id="brain-ring-3"/>
+
+                    <!-- Orbit dots -->
+                    <circle class="orbit-dot orbit-dot--1" cx="450" cy="80" r="3" id="orbit-dot-1"/>
+                    <circle class="orbit-dot orbit-dot--2" cx="470" cy="100" r="2.5" id="orbit-dot-2"/>
+                    <circle class="orbit-dot orbit-dot--3" cx="450" cy="120" r="2" id="orbit-dot-3"/>
+
+                    <!-- Center brain core -->
+                    <circle class="brain-core" cx="450" cy="100" r="8" id="brain-core"/>
+                </svg>
+
+                <!-- Domain Nodes (positioned over SVG) -->
+                <div class="domain-nodes-row">
+                    <div class="domain-node" id="node-pharmacology" data-domain="pharmacology">
+                        <div class="domain-node__pulse-ring"></div>
+                        <div class="domain-node__inner">
+                            <div class="domain-node__icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-6 18.75h9"/><path d="M9 12h6m-3-3v6"/></svg>
+                            </div>
+                            <div class="domain-node__name">PHARMACOLOGY</div>
+                            <div class="domain-node__chunks" id="chunks-pharmacology">45 chunks</div>
+                            <div class="domain-node__badge" id="badge-pharmacology">0</div>
+                        </div>
+                    </div>
+
+                    <div class="domain-node-spacer"></div>
+
+                    <div class="domain-node domain-node--center" id="node-cardiology" data-domain="cardiology">
+                        <div class="domain-node__pulse-ring"></div>
+                        <div class="domain-node__inner">
+                            <div class="domain-node__icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+                            </div>
+                            <div class="domain-node__name">CARDIOLOGY</div>
+                            <div class="domain-node__chunks" id="chunks-cardiology">38 chunks</div>
+                            <div class="domain-node__badge" id="badge-cardiology">0</div>
+                        </div>
+                    </div>
+
+                    <div class="domain-node-spacer"></div>
+
+                    <div class="domain-node" id="node-clinical_trials" data-domain="clinical_trials">
+                        <div class="domain-node__pulse-ring"></div>
+                        <div class="domain-node__inner">
+                            <div class="domain-node__icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19 14.5M14.25 3.104c.251.023.501.05.75.082M19 14.5l-2.47 2.47a2.25 2.25 0 01-1.59.659H9.06a2.25 2.25 0 01-1.591-.659L5 14.5m14 0V20a2 2 0 01-2 2H7a2 2 0 01-2-2v-5.5"/></svg>
+                            </div>
+                            <div class="domain-node__name">CLINICAL TRIALS</div>
+                            <div class="domain-node__chunks" id="chunks-clinical_trials">27 chunks</div>
+                            <div class="domain-node__badge" id="badge-clinical_trials">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Split Panels -->
+        <div class="panels">
+            <!-- Agent Log (Terminal) -->
+            <div class="panel panel--log">
+                <div class="panel__header">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c40ef" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    <span class="panel__header-title">Agent Log</span>
+                    <span class="panel__header-tag">TERMINAL</span>
+                </div>
+                <div class="panel__body panel__body--log">
+                    <div class="agent-log" id="agent-log">
+                        <div class="log-welcome">
+                            <span class="log-welcome__prompt">&gt;</span> Research Agent v3.0 initialized<br>
+                            <span class="log-welcome__prompt">&gt;</span> Awaiting query...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Verified Findings -->
+            <div class="panel panel--findings">
+                <div class="panel__header">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#03cfda" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <span class="panel__header-title">Verified Findings</span>
+                    <span class="panel__header-tag panel__header-tag--cyan">CoVe</span>
+                </div>
+                <div class="panel__body panel__body--findings">
+                    <div class="findings-list" id="findings-list">
+                        <div class="findings-empty" id="findings-empty">
+                            <div class="findings-empty__icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#30363d" stroke-width="1"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                            </div>
+                            <div class="findings-empty__text">Awaiting agent analysis...</div>
+                            <div class="findings-empty__sub">Run a query to see verified findings</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer" id="disclaimer">
+            <div class="disclaimer__icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff602e" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <div class="disclaimer__content">
+                <div class="disclaimer__title">Disclaimer</div>
+                <div class="disclaimer__text" id="disclaimer-text"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ============================================================
+         STATUS BAR
+         ============================================================ -->
+    <footer class="status-bar" id="status-bar">
+        <div class="status-bar__gradient"></div>
+        <div class="status-bar__content">
+            <div class="status-bar__items">
+                <div class="status-item">
+                    <span class="status-item__label">MODEL</span>
+                    <span class="status-item__value" id="stat-model">Mistral Small 3.2</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-item__label">DOMAINS</span>
+                    <span class="status-item__value" id="stat-domains">3</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-item__label">CHUNKS</span>
+                    <span class="status-item__value status-item__value--live" id="stat-chunks">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-item__label">CoVe</span>
+                    <span class="status-item__value" id="stat-cove">Pending</span>
+                </div>
+            </div>
+            <div class="status-bar__timer" id="timer-display">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span id="timer-value">0.0s</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

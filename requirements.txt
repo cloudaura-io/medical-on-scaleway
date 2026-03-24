@@ -1,0 +1,22 @@
+# Scaleway Generative APIs (OpenAI-compatible)
+openai>=1.0
+
+# Web framework
+fastapi>=0.110
+uvicorn[standard]
+sse-starlette
+python-multipart
+
+# Database
+pgvector>=0.3
+psycopg[binary]>=3.0
+
+# Utilities
+python-dotenv
+Pillow
+pdf2image
+boto3
+
+# Notebooks (interactive lab - install separately)
+# jupyter
+# ipywidgets
