@@ -8,9 +8,13 @@ ready for SSE streaming.
 from __future__ import annotations
 
 import json
+import logging
+import time
 from typing import Any, Callable, Generator
 
 from src.config import get_generative_client, CHAT_MODEL
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Built-in tool definitions (OpenAI function-calling format)
@@ -116,6 +120,7 @@ Guidelines:
 # ---------------------------------------------------------------------------
 
 def _step(step_type: str, data: Any) -> dict:
+    logger.debug("Emitting step type=%s", step_type)
     return {"type": step_type, "data": data}
 
 
@@ -157,6 +162,7 @@ def run_agent(
         - ``verification``— optional self-check before final answer
         - ``final``       — the completed response
     """
+    logger.info("run_agent called, query=%r, max_iterations=%d, tools=%d defined", query[:80], max_iterations, len(tools or ALL_TOOLS))
     if tools is None:
         tools = ALL_TOOLS
 
@@ -169,6 +175,8 @@ def run_agent(
     yield _step("thinking", "Analysing the query and deciding which tools to use...")
 
     for _iteration in range(max_iterations):
+        logger.info("Agent iteration %d/%d starting", _iteration + 1, max_iterations)
+        t0 = time.perf_counter()
         response = client.chat.completions.create(
             model=CHAT_MODEL,
             messages=messages,
@@ -176,19 +184,20 @@ def run_agent(
             tool_choice="auto",
             temperature=0.2,
         )
+        elapsed = time.perf_counter() - t0
+        logger.debug("LLM call completed in %.2fs, model=%s", elapsed, CHAT_MODEL)
 
         choice = response.choices[0]
         message = choice.message
 
-        # ---- No tool calls → we have a final (or synthesis) answer --------
         if not message.tool_calls:
             content = message.content or ""
+            logger.info("Agent finished at iteration %d with final response (length=%d)", _iteration + 1, len(content))
             messages.append({"role": "assistant", "content": content})
             yield _step("final", content)
             return
 
-        # ---- Process tool calls -------------------------------------------
-        # Append the assistant message with tool_calls first.
+        logger.info("Agent iteration %d produced %d tool call(s)", _iteration + 1, len(message.tool_calls))
         messages.append(message.model_dump())
 
         for tc in message.tool_calls:
@@ -196,20 +205,28 @@ def run_agent(
             try:
                 fn_args = json.loads(tc.function.arguments)
             except json.JSONDecodeError:
+                logger.warning("Failed to parse tool arguments for %s: %r", fn_name, tc.function.arguments)
                 fn_args = {}
 
+            logger.info("Tool call: %s, args=%s", fn_name, fn_args)
             yield _step("tool_call", {"name": fn_name, "arguments": fn_args})
 
             handler = tool_handlers.get(fn_name)
             if handler is None:
+                logger.warning("Unknown tool requested: %s", fn_name)
                 result = {"error": f"Unknown tool: {fn_name}"}
             else:
                 try:
+                    t1 = time.perf_counter()
                     result = handler(**fn_args)
+                    handler_elapsed = time.perf_counter() - t1
+                    logger.debug("Tool %s executed in %.2fs", fn_name, handler_elapsed)
                 except Exception as exc:
+                    logger.error("Tool %s raised exception: %s", fn_name, exc, exc_info=True)
                     result = {"error": str(exc)}
 
             result_str = json.dumps(result) if not isinstance(result, str) else result
+            logger.debug("Tool %s result length=%d chars", fn_name, len(result_str))
 
             yield _step("tool_result", {"name": fn_name, "result": result_str})
 
@@ -223,7 +240,7 @@ def run_agent(
 
         yield _step("synthesis", "Integrating tool results...")
 
-    # If we exhausted iterations, yield whatever we have.
+    logger.warning("Agent exhausted max_iterations=%d without final answer", max_iterations)
     yield _step(
         "final",
         "I was unable to complete the analysis within the allowed number of steps. "

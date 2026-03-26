@@ -9,9 +9,9 @@ output "database_connection_url" {
   value = format(
     "postgresql://%s:%s@%s:%d/%s?sslmode=require",
     scaleway_rdb_user.lab_user.name,
-    var.db_password,
-    scaleway_rdb_instance.medical_db.endpoint_ip,
-    scaleway_rdb_instance.medical_db.endpoint_port,
+    random_password.db_password.result,
+    scaleway_rdb_instance.medical_db.load_balancer[0].ip,
+    scaleway_rdb_instance.medical_db.load_balancer[0].port,
     scaleway_rdb_database.medical_knowledge.name,
   )
   sensitive = true
@@ -19,17 +19,23 @@ output "database_connection_url" {
 
 output "database_host" {
   description = "PostgreSQL host (IP)"
-  value       = scaleway_rdb_instance.medical_db.endpoint_ip
+  value       = scaleway_rdb_instance.medical_db.load_balancer[0].ip
 }
 
 output "database_port" {
   description = "PostgreSQL port"
-  value       = scaleway_rdb_instance.medical_db.endpoint_port
+  value       = scaleway_rdb_instance.medical_db.load_balancer[0].port
 }
 
 output "database_name" {
   description = "PostgreSQL database name"
   value       = scaleway_rdb_database.medical_knowledge.name
+}
+
+output "database_password" {
+  description = "Generated password for the lab_user PostgreSQL user"
+  value       = random_password.db_password.result
+  sensitive   = true
 }
 
 # --- Object Storage ---
@@ -53,7 +59,7 @@ output "object_storage_api_endpoint" {
 
 output "inference_endpoint" {
   description = "Public endpoint for the BGE embedding model (OpenAI-compatible API)"
-  value       = scaleway_inference_deployment.embedding.public_endpoint[0].url
+  value       = "${scaleway_inference_deployment.embedding.public_endpoint[0].url}/v1"
 }
 
 output "inference_deployment_id" {

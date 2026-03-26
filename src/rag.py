@@ -10,6 +10,7 @@ Retrieval-Augmented Generation (RAG) pipeline.
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from typing import Optional
 
@@ -21,6 +22,8 @@ from src.config import (
     CHAT_MODEL,
 )
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # Embedding
 # ---------------------------------------------------------------------------
@@ -31,12 +34,16 @@ def create_embedding(text: str) -> list[float]:
     The Managed Inference endpoint runs on a dedicated GPU so patient data
     never traverses shared infrastructure.
     """
+    logger.info("create_embedding called, text_length=%d chars", len(text))
     client = get_inference_client()
+    logger.debug("Requesting embedding from model=%s", EMBEDDING_MODEL)
     response = client.embeddings.create(
         model=EMBEDDING_MODEL,
         input=text,
     )
-    return response.data[0].embedding
+    embedding = response.data[0].embedding
+    logger.info("create_embedding completed, dimensions=%d", len(embedding))
+    return embedding
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +61,9 @@ def chunk_document(
     the nearest newline or sentence boundary inside the window to avoid
     cutting mid-word.
     """
+    logger.info("chunk_document called, text_length=%d, chunk_size=%d, overlap=%d", len(text) if text else 0, chunk_size, overlap)
     if not text:
+        logger.warning("chunk_document received empty text, returning empty list")
         return []
 
     chunks: list[str] = []
@@ -64,9 +73,7 @@ def chunk_document(
     while start < length:
         end = min(start + chunk_size, length)
 
-        # Try to break at a paragraph or sentence boundary.
         if end < length:
-            # Prefer double-newline, then single newline, then period+space.
             for sep in ("\n\n", "\n", ". "):
                 boundary = text.rfind(sep, start + overlap, end)
                 if boundary != -1:
@@ -77,9 +84,9 @@ def chunk_document(
         if chunk:
             chunks.append(chunk)
 
-        # Advance by (end - overlap), but at least 1 char to avoid infinite loop.
         start = max(end - overlap, start + 1)
 
+    logger.info("chunk_document completed, produced %d chunks", len(chunks))
     return chunks
 
 
@@ -94,18 +101,16 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     content     TEXT NOT NULL,
     metadata    JSONB DEFAULT '{}',
     domain      TEXT,
-    embedding   vector(768),
+    embedding   vector(3584),
     created_at  TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_chunks_embedding
-    ON document_chunks USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 100);
 CREATE INDEX IF NOT EXISTS idx_chunks_domain
     ON document_chunks (domain);
 """
 
 
 def _ensure_table() -> None:
+    logger.debug("Ensuring document_chunks table exists")
     conn = get_db_connection()
     conn.execute(_TABLE_INIT_SQL)
 
@@ -138,12 +143,15 @@ def index_document(
     int
         Number of chunks indexed.
     """
+    logger.info("index_document called, source=%s, content_length=%d, domain=%s", source, len(content), domain)
     _ensure_table()
     conn = get_db_connection()
     chunks = chunk_document(content)
     meta_json = json.dumps(metadata or {})
+    logger.debug("Indexing %d chunks for source=%s", len(chunks), source)
 
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks):
+        logger.debug("Embedding chunk %d/%d (length=%d)", i + 1, len(chunks), len(chunk))
         embedding = create_embedding(chunk)
         conn.execute(
             """
@@ -153,6 +161,7 @@ def index_document(
             (str(uuid.uuid4()), source, chunk, meta_json, domain, str(embedding)),
         )
 
+    logger.info("index_document completed, chunks_indexed=%d, source=%s", len(chunks), source)
     return len(chunks)
 
 
@@ -181,11 +190,14 @@ def search(
     list[dict]
         Each dict contains: id, source, content, metadata, score.
     """
+    logger.info("search called, query=%r, top_k=%d, domain=%s", query[:80], top_k, domain)
     _ensure_table()
     conn = get_db_connection()
     embedding = create_embedding(query)
+    logger.debug("Query embedding created, dimensions=%d", len(embedding))
 
     if domain:
+        logger.debug("Executing domain-filtered similarity search, domain=%s", domain)
         rows = conn.execute(
             """
             SELECT id, source, content, metadata,
@@ -198,6 +210,7 @@ def search(
             (str(embedding), domain, str(embedding), top_k),
         ).fetchall()
     else:
+        logger.debug("Executing unfiltered similarity search")
         rows = conn.execute(
             """
             SELECT id, source, content, metadata,
@@ -209,7 +222,7 @@ def search(
             (str(embedding), str(embedding), top_k),
         ).fetchall()
 
-    return [
+    results = [
         {
             "id": str(row[0]),
             "source": row[1],
@@ -219,6 +232,13 @@ def search(
         }
         for row in rows
     ]
+
+    if not results:
+        logger.warning("search returned 0 results for query=%r, domain=%s", query[:80], domain)
+    else:
+        logger.info("search completed, results=%d, top_score=%.4f", len(results), results[0]["score"])
+
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -256,7 +276,7 @@ def generate_cited_response(
     str
         The generated answer with [Source: ...] citations.
     """
-    # Build a numbered context block so the model can reference sources.
+    logger.info("generate_cited_response called, query=%r, context_chunks=%d", query[:80], len(context_chunks))
     context_parts: list[str] = []
     for i, chunk in enumerate(context_chunks, 1):
         context_parts.append(
@@ -269,6 +289,7 @@ def generate_cited_response(
     )
 
     client = get_generative_client()
+    logger.debug("Sending cited-response request to model=%s, context_length=%d chars", CHAT_MODEL, len(context_block))
     response = client.chat.completions.create(
         model=CHAT_MODEL,
         messages=[
@@ -278,4 +299,6 @@ def generate_cited_response(
         temperature=0.2,
     )
 
-    return response.choices[0].message.content
+    content = response.choices[0].message.content
+    logger.info("generate_cited_response completed, response_length=%d chars", len(content) if content else 0)
+    return content

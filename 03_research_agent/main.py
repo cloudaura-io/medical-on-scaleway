@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import sys
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -25,6 +27,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
+
+# ---------------------------------------------------------------------------
+# Logging configuration
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Path fixup so `from src.…` resolves to the repo root
@@ -70,19 +82,25 @@ SAMPLE_QUERIES = [
 
 def _handle_search_medical_knowledge(query: str, domain: str | None = None) -> list[dict]:
     """Search the RAG knowledge base."""
-    return rag_search(query, top_k=5, domain=domain)
+    logger.info("_handle_search_medical_knowledge called, query=%r, domain=%s", query[:80], domain)
+    results = rag_search(query, top_k=5, domain=domain)
+    logger.info("_handle_search_medical_knowledge completed, results=%d", len(results))
+    return results
 
 
 def _handle_check_drug_interactions(drug1: str, drug2: str) -> dict:
     """Check drug interactions via knowledge base search."""
+    logger.info("_handle_check_drug_interactions called, drug1=%s, drug2=%s", drug1, drug2)
     results = rag_search(f"{drug1} {drug2} drug interaction", top_k=3, domain="pharmacology")
     if results:
+        logger.info("Drug interaction evidence found, sources=%d", len(results[:3]))
         return {
             "drug1": drug1,
             "drug2": drug2,
             "evidence": [r["content"] for r in results[:3]],
             "sources": [r["source"] for r in results[:3]],
         }
+    logger.warning("No drug interaction evidence found for %s + %s", drug1, drug2)
     return {"drug1": drug1, "drug2": drug2, "evidence": [], "sources": []}
 
 

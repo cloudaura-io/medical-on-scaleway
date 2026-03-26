@@ -341,9 +341,9 @@ Plan: order troponin, lipid panel, stress test. Consider adding
 statin. Follow up in 1 week.
 ```
 
-### Infrastructure (Terraform)
+### Infrastructure (OpenTofu)
 
-Students run `terraform apply` to provision:
+Students run `tofu apply` to provision:
 - Managed PostgreSQL (DB-DEV-S) with pgvector
 - Object Storage bucket (for knowledge base documents)
 
@@ -355,7 +355,7 @@ Generative APIs require only an API key (no infra to provision).
 `notebooks/lab_00_setup.ipynb`
 
 - Clone repo, pip install requirements
-- Configure `.env` (Scaleway API key, DB connection from Terraform output)
+- Configure `.env` (Scaleway API key, DB connection from OpenTofu output)
 - **Cell 1**: Create OpenAI client pointing to `https://api.scaleway.ai/v1`
 - **Cell 2**: First chat completion — ask Mistral "What are the common symptoms of type 2 diabetes?"
 - **Cell 3**: Verify PostgreSQL connection, enable pgvector extension
@@ -475,7 +475,7 @@ Generative APIs require only an API key (no infra to provision).
   - What would you add for production? (monitoring, continuous evaluation, FHIR integration)
   - EU AI Act: healthcare AI is "high-risk" — what architectural patterns support compliance?
   - Data sovereignty: why Scaleway's European cloud matters for patient data
-- **Cell 4**: Terraform destroy — clean up resources
+- **Cell 4**: OpenTofu destroy — clean up resources
 
 ---
 
@@ -639,7 +639,7 @@ ipywidgets                 # Interactive notebook widgets
 - **Vision/OCR**: `pixtral-12b-2409`
 - **Embeddings**: `bge-multilingual-gemma2`
 - **Managed Inference**: `https://<deployment-uuid>.ifr.fr-par.scaleway.com/v1`
-- **Terraform provider**: `scaleway/scaleway` v2.70+
+- **OpenTofu provider**: `scaleway/scaleway` v2.70+
 
 ---
 
@@ -653,14 +653,14 @@ ipywidgets                 # Interactive notebook widgets
 | 1:10 | **Showcase 3** | Cross-domain Research Agent (multi-RAG + verification) |
 | 1:30 | Presentation | Scaleway Cloud + AI Governance / EU AI Act |
 | 1:50 | *Break* | |
-| 2:00 | **Lab 0** | Setup — Terraform, env, first API call |
+| 2:00 | **Lab 0** | Setup — OpenTofu, env, first API call |
 | 2:15 | **Lab 1** | Understanding clinical notes with Mistral |
 | 2:30 | **Lab 2** | Structured data extraction |
 | 2:50 | **Lab 3** | RAG with pgvector |
 | 3:15 | **Lab 4** | Building a tool-calling agent |
 | 3:40 | **Lab 5** | Safety guardrails & human review |
 | 4:00 | **Lab 6** | Full pipeline + wrap-up discussion |
-| 4:15 | Close | Q&A, next steps, terraform destroy |
+| 4:15 | Close | Q&A, next steps, tofu destroy |
 
 ---
 
@@ -668,7 +668,7 @@ ipywidgets                 # Interactive notebook widgets
 
 ### Phase 1: Scaffolding
 - Repo structure, `.gitignore`, `requirements.txt`, `.env.example`
-- Terraform: PostgreSQL + pgvector, Object Storage, Managed Inference (BGE embeddings on L4 for patient data privacy)
+- OpenTofu: PostgreSQL + pgvector, Object Storage, Managed Inference (BGE embeddings on L4 for patient data privacy)
 
 ### Phase 2: Shared modules (`src/`)
 - `config.py` — API clients, DB connection

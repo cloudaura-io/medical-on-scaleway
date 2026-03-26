@@ -16,12 +16,13 @@ env/
 # Environment variables
 .env
 
-# Terraform
+# OpenTofu
 infrastructure/.terraform/
 infrastructure/*.tfstate
 infrastructure/*.tfstate.backup
 infrastructure/.terraform.lock.hcl
 infrastructure/terraform.tfvars
+infrastructure/*.auto.tfvars
 
 # IDE
 .vscode/

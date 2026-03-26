@@ -3,7 +3,7 @@ Showcase 2 — Medical Document Intelligence
 
 FastAPI backend that orchestrates:
   1. PDF upload
-  2. OCR via Pixtral (page-by-page with SSE progress)
+  2. OCR via Mistral Small 3.2 vision (page-by-page with SSE progress)
   3. Chunking + embedding into pgvector via RAG pipeline
   4. Natural-language queries with cited responses
 
@@ -119,7 +119,7 @@ async def upload_document(file: UploadFile = File(...)):
 
 @app.post("/api/process/{doc_id}")
 async def process_document(doc_id: str):
-    """Run Pixtral OCR on each page and index via RAG.  Returns SSE stream."""
+    """Run vision OCR on each page and index via RAG.  Returns SSE stream."""
     if doc_id not in _documents:
         raise HTTPException(status_code=404, detail="Document not found.")
 
@@ -136,12 +136,11 @@ async def process_document(doc_id: str):
             doc["pages"] = pages
 
             for i, page in enumerate(pages):
-                preview = page["text"][:150].replace("\n", " ").strip()
                 yield _sse({
                     "event": "page_processed",
                     "page": page["page"],
                     "total": len(pages),
-                    "text_preview": preview,
+                    "text": page["text"],
                 })
                 await asyncio.sleep(0.1)  # Small pause for UI animation
 
