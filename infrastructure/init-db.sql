@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 -- Scaleway Medical AI Lab - Database Initialization
--- Run against the medical_knowledge database after Terraform provisioning:
+-- Run against the medical_knowledge database after OpenTofu provisioning:
 --   psql "$DATABASE_URL" -f init-db.sql
 --------------------------------------------------------------------------------
 
@@ -27,18 +27,15 @@ CREATE TABLE IF NOT EXISTS embeddings (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     doc_id     BIGINT       NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     chunk_text TEXT         NOT NULL,
-    embedding  vector(768)  NOT NULL,
+    embedding  vector(3584) NOT NULL,
     metadata   JSONB        NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE embeddings IS 'Chunked text with 768-dim embeddings from bge-multilingual-gemma2';
+COMMENT ON TABLE embeddings IS 'Chunked text with 3584-dim embeddings from bge-multilingual-gemma2';
 
--- HNSW index for fast approximate nearest-neighbour search (cosine distance)
-CREATE INDEX IF NOT EXISTS idx_embeddings_vector
-    ON embeddings
-    USING hnsw (embedding vector_cosine_ops)
-    WITH (m = 16, ef_construction = 64);
+-- Note: vector index skipped — pgvector 0.8 limits HNSW/IVFFlat to 2000 dims,
+-- BGE embeddings are 3584-dim. Exact search is fast enough for workshop-sized data.
 
 -- Speed up joins back to the source document
 CREATE INDEX IF NOT EXISTS idx_embeddings_doc_id

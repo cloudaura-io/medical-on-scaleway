@@ -18,7 +18,7 @@ A Scaleway account with API keys is required to run the showcases. Scaleway offe
 
 ```
 .
-├── infrastructure/          Terraform to provision Scaleway resources
+├── infrastructure/          OpenTofu to provision Scaleway resources
 │   ├── main.tf              PostgreSQL + pgvector, Object Storage, Managed Inference
 │   ├── variables.tf
 │   ├── outputs.tf
@@ -58,14 +58,14 @@ A Scaleway account with API keys is required to run the showcases. Scaleway offe
 # Provision resources (PostgreSQL + pgvector, Object Storage, Managed Inference)
 cp infrastructure/terraform.tfvars.example infrastructure/terraform.tfvars
 # Edit terraform.tfvars with your Scaleway credentials
-cd infrastructure && terraform init && terraform apply
+cd infrastructure && tofu init && tofu apply
 ```
 
 ### 2. Configure environment
 
 ```bash
 cp .env.example .env
-# Fill in API keys and connection strings from terraform output
+# Fill in API keys and connection strings from tofu output
 
 # Initialize database schema
 psql "$DATABASE_URL" -f infrastructure/init-db.sql
@@ -114,7 +114,7 @@ These are architectural patterns, not compliance certifications. See `PLAN.md` f
 ## Prerequisites
 
 - Python 3.11+
-- Terraform 1.5+ (for infrastructure provisioning)
+- OpenTofu 1.5+ (for infrastructure provisioning)
 - A [Scaleway account](https://www.scaleway.com/) with API keys (free trial available)
 
 ## License

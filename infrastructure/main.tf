@@ -1,5 +1,5 @@
 ################################################################################
-# Scaleway Medical AI Lab - Terraform Infrastructure
+# Scaleway Medical AI Lab - OpenTofu Infrastructure
 ################################################################################
 
 terraform {
@@ -10,15 +10,24 @@ terraform {
       source  = "scaleway/scaleway"
       version = ">= 2.70.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.5.0"
+    }
+    http = {
+      source  = "hashicorp/http"
+      version = ">= 3.0.0"
+    }
   }
 }
 
 provider "scaleway" {
-  access_key = var.scw_access_key
-  secret_key = var.scw_secret_key
-  project_id = var.scw_project_id
-  region     = "fr-par"
-  zone       = "fr-par-1"
+  access_key      = var.access_key
+  secret_key      = var.secret_key
+  organization_id = var.organization_id
+  project_id      = var.project_id
+  region          = "fr-par"
+  zone            = "fr-par-1"
 }
 
 ################################################################################
@@ -33,7 +42,8 @@ resource "scaleway_rdb_instance" "medical_db" {
   disable_backup = true
 
   volume_type = "lssd"
-  volume_size_in_gb = 10
+
+  load_balancer {}
 
   tags = ["workshop", "medical-lab", var.student_id]
 }
@@ -43,11 +53,30 @@ resource "scaleway_rdb_database" "medical_knowledge" {
   name        = "medical_knowledge"
 }
 
+resource "random_password" "db_password" {
+  length           = 32
+  special          = true
+  override_special = "-_."
+}
+
 resource "scaleway_rdb_user" "lab_user" {
   instance_id = scaleway_rdb_instance.medical_db.id
   name        = "lab_user"
-  password    = var.db_password
+  password    = random_password.db_password.result
   is_admin    = false
+}
+
+data "http" "my_ip" {
+  url = "https://ifconfig.me/ip"
+}
+
+resource "scaleway_rdb_acl" "medical_db_acl" {
+  instance_id = scaleway_rdb_instance.medical_db.id
+
+  acl_rules {
+    ip          = "${trimspace(data.http.my_ip.response_body)}/32"
+    description = "Current workstation IP"
+  }
 }
 
 resource "scaleway_rdb_privilege" "lab_user_privileges" {
@@ -83,8 +112,8 @@ resource "scaleway_object_bucket" "medical_docs" {
 
 resource "scaleway_inference_deployment" "embedding" {
   name      = "medical-embedding-${var.student_id}"
-  node_type = "L4-1-24G"
-  model_id  = "bge-multilingual-gemma2"
+  node_type = "L4"
+  model_id  = "d58efec4-b667-48e2-8ad8-bcc26c175ae6" # baai/bge-multilingual-gemma2:fp32
 
   accept_eula = true
 

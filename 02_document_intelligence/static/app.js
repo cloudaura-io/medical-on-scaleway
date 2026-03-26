@@ -324,7 +324,7 @@
                 entry.pageTexts = entry.pageTexts || [];
                 entry.pageTexts.push({
                     page: evt.page,
-                    preview: evt.text_preview,
+                    text: evt.text,
                 });
                 renderFileList();
                 break;
@@ -460,7 +460,7 @@
         }
 
         const text = file.pageTexts.map(p =>
-            `--- Page ${p.page} ---\n${p.preview}`
+            `--- Page ${p.page} ---\n${p.text}`
         ).join('\n\n');
         dom.extractedText.textContent = text;
     }
