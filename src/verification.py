@@ -11,9 +11,12 @@ Given an AI-generated response, this module:
 from __future__ import annotations
 
 import json
+import logging
 from typing import Callable
 
 from src.config import get_generative_client, CHAT_MODEL
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Prompts
@@ -79,7 +82,13 @@ def _extract_claims(response: str) -> list[str]:
         end = raw.rfind("]")
         if start != -1 and end != -1:
             raw = raw[start : end + 1]
-    return json.loads(raw)
+    try:
+        claims = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse claims JSON, falling back to sentence split: %s", raw[:200])
+        claims = [s.strip() for s in raw.split(".") if len(s.strip()) > 20]
+    logger.info("Extracted %d claims", len(claims))
+    return claims
 
 
 def _make_query(claim: str) -> str:
@@ -120,7 +129,11 @@ def _judge(claim: str, evidence: str) -> dict:
     # Tolerate markdown fences.
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse judge JSON: %s", raw[:200])
+        return {"status": "NO_EVIDENCE", "explanation": raw[:200]}
 
 
 # ---------------------------------------------------------------------------
@@ -154,10 +167,15 @@ def verify_claims(
                 "source": str | None,
             }
     """
+    logger.info("verify_claims called, response_length=%d", len(response))
     claims = _extract_claims(response)
+    if not claims:
+        logger.warning("No claims extracted from response")
+        return []
     results: list[dict] = []
 
-    for claim in claims:
+    for i, claim in enumerate(claims):
+        logger.info("Verifying claim %d/%d: %s", i + 1, len(claims), claim[:80])
         # Step 1: generate a targeted search query.
         query = _make_query(claim)
 
@@ -188,6 +206,7 @@ def verify_claims(
             {
                 "claim": claim,
                 "status": judgement.get("status", "NO_EVIDENCE"),
+                "explanation": judgement.get("explanation", ""),
                 "evidence": combined_evidence,
                 "source": top_source,
             }
