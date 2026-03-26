@@ -46,6 +46,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.agent import run_agent, ALL_TOOLS  # noqa: E402
 from src.rag import search as rag_search  # noqa: E402
 from src.config import CHAT_MODEL  # noqa: E402
+from src.verification import verify_claims  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Knowledge domains
@@ -132,6 +133,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
+    logger.debug("Serving index.html")
     index = STATIC_DIR / "index.html"
     return HTMLResponse(index.read_text())
 
@@ -142,37 +144,70 @@ async def research(request: Request):
     body = await request.json()
     query = body.get("query", "")
     if not query:
+        logger.warning("Research request received with empty query")
         return JSONResponse({"error": "query is required"}, status_code=400)
 
+    logger.info("Research request received, query=%r", query[:120])
+
     async def event_generator():
+        step_count = 0
+        t0 = time.perf_counter()
         try:
             for step in run_agent(query, tool_handlers=TOOL_HANDLERS, tools=ALL_TOOLS):
+                if step.get("type") == "final" and isinstance(step.get("data"), str):
+                    logger.info("Running Chain-of-Verification on final response")
+                    findings = []
+                    try:
+                        findings = verify_claims(
+                            step["data"],
+                            search_fn=lambda q: rag_search(q, top_k=3),
+                        )
+                        logger.info("CoVe completed, findings=%d", len(findings))
+                    except Exception as exc:
+                        logger.error("CoVe verification failed: %s", exc, exc_info=True)
+                        findings = [{"claim": "Verification failed", "status": "NO_EVIDENCE", "explanation": str(exc), "evidence": "", "source": None}]
+                    step_count += 1
+                    logger.debug("SSE event #%d, type=verification, findings=%d", step_count, len(findings))
+                    yield {
+                        "event": "step",
+                        "data": json.dumps({"type": "verification", "data": {"findings": findings}}),
+                    }
+                    await asyncio.sleep(0.05)
+
+                step_count += 1
+                logger.debug("SSE event #%d, type=%s", step_count, step.get("type"))
                 yield {
                     "event": "step",
                     "data": json.dumps(step),
                 }
-                await asyncio.sleep(0.05)  # Small pause for UI responsiveness
+                await asyncio.sleep(0.05)
         except Exception as exc:
+            logger.error("Agent raised exception for query=%r: %s", query[:80], exc, exc_info=True)
             yield {
                 "event": "step",
                 "data": json.dumps({"type": "final", "data": {"error": str(exc)}}),
             }
+        elapsed = time.perf_counter() - t0
+        logger.info("Research stream completed, steps=%d, elapsed=%.2fs", step_count, elapsed)
 
     return EventSourceResponse(event_generator())
 
 
 @app.get("/api/domains")
 async def domains():
+    logger.debug("Serving domains, count=%d", len(KNOWLEDGE_DOMAINS))
     return JSONResponse(KNOWLEDGE_DOMAINS)
 
 
 @app.get("/api/sample-queries")
 async def sample_queries():
+    logger.debug("Serving sample queries, count=%d", len(SAMPLE_QUERIES))
     return JSONResponse(SAMPLE_QUERIES)
 
 
 @app.get("/api/health")
 async def health():
+    logger.debug("Health check requested")
     return JSONResponse({
         "status": "ok",
         "model": CHAT_MODEL,

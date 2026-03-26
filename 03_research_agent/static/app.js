@@ -669,7 +669,8 @@ function addAgentLogEntry(text, type, isHtml) {
 // ---------------------------------------------------------------------------
 
 function addFinding(finding) {
-    if (findingsEmpty) findingsEmpty.style.display = 'none';
+    const empty = document.getElementById('findings-empty');
+    if (empty) empty.remove();
 
     const status = (finding.status || 'NO_EVIDENCE').toLowerCase();
 
