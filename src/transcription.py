@@ -8,12 +8,15 @@ for server-sent events (SSE).
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Generator
 
 import httpx
 
 from src.config import get_generative_client, STT_MODEL, _require
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -33,6 +36,10 @@ def transcribe_audio(audio_path: str) -> str:
     str
         The transcription text produced by Voxtral.
     """
+    logger.info(
+        "transcribe_audio called, audio_path=%s",
+        audio_path,
+    )
     client = get_generative_client()
     path = Path(audio_path)
 
@@ -42,6 +49,10 @@ def transcribe_audio(audio_path: str) -> str:
             file=audio_file,
         )
 
+    logger.info(
+        "transcribe_audio completed, text_length=%d chars",
+        len(response.text),
+    )
     return response.text
 
 
@@ -65,11 +76,16 @@ def transcribe_audio_stream(audio_path: str) -> Generator[str, None, None]:
     str
         Successive text fragments of the transcription.
     """
+    logger.info(
+        "transcribe_audio_stream called, audio_path=%s",
+        audio_path,
+    )
     base_url = _require("SCW_GENERATIVE_API_URL")
     api_key = _require("SCW_SECRET_KEY")
     url = f"{base_url}/audio/transcriptions"
     path = Path(audio_path)
 
+    chunk_count = 0
     with open(path, "rb") as audio_file:
         files = {"file": (path.name, audio_file, "application/octet-stream")}
         data = {"model": STT_MODEL, "stream": "true"}
@@ -89,6 +105,16 @@ def transcribe_audio_stream(audio_path: str) -> Generator[str, None, None]:
                     chunk = json.loads(payload)
                     text = chunk.get("text", "")
                     if text:
+                        chunk_count += 1
                         yield text
                 except json.JSONDecodeError:
+                    logger.warning(
+                        "Failed to parse streaming chunk: %s",
+                        payload[:100],
+                    )
                     continue
+
+    logger.info(
+        "transcribe_audio_stream completed, chunks_yielded=%d",
+        chunk_count,
+    )
