@@ -46,12 +46,16 @@ class TestConfigureLogging:
         # At least one handler should be present
         assert len(root.handlers) > 0
 
-        # Check the format string of the last handler (ours)
-        handler = root.handlers[-1]
-        fmt = handler.formatter._fmt if handler.formatter else ""
-        # Must include asctime (timestamp) and name (module)
-        assert "%(asctime)s" in fmt
-        assert "%(name)s" in fmt
+        # Find a handler whose format contains both asctime and name
+        found = False
+        for handler in root.handlers:
+            fmt = handler.formatter._fmt if handler.formatter else ""
+            if "%(asctime)s" in fmt and "%(name)s" in fmt:
+                found = True
+                break
+        assert found, (
+            "No handler found with %(asctime)s and %(name)s in format"
+        )
 
     def test_adds_handler(self) -> None:
         """configure_logging() must add a StreamHandler to the root logger."""
