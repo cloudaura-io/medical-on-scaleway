@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
@@ -23,6 +25,69 @@ def static_dir(tmp_path: Path) -> Path:
         "<html><body><h1>Test App</h1></body></html>"
     )
     return tmp_path
+
+
+# ---------------------------------------------------------------------------
+# Tests: setup_project_path()
+# ---------------------------------------------------------------------------
+
+class TestSetupProjectPath:
+    """Test the setup_project_path() helper."""
+
+    def test_returns_project_root(self, tmp_path: Path) -> None:
+        """setup_project_path() must return the grandparent of the file."""
+        from src.app_factory import setup_project_path
+
+        # Simulate a file at <root>/app_dir/main.py
+        app_dir = tmp_path / "my_app"
+        app_dir.mkdir()
+        fake_main = app_dir / "main.py"
+        fake_main.touch()
+
+        result = setup_project_path(str(fake_main))
+        assert result == tmp_path
+
+    def test_adds_root_to_sys_path(self, tmp_path: Path) -> None:
+        """setup_project_path() must add project root to sys.path."""
+        from src.app_factory import setup_project_path
+
+        app_dir = tmp_path / "my_app"
+        app_dir.mkdir()
+        fake_main = app_dir / "main.py"
+        fake_main.touch()
+
+        # Remove if already present to test the insert
+        root_str = str(tmp_path)
+        original_path = sys.path.copy()
+        try:
+            while root_str in sys.path:
+                sys.path.remove(root_str)
+            setup_project_path(str(fake_main))
+            assert root_str in sys.path
+        finally:
+            sys.path[:] = original_path
+
+    def test_does_not_duplicate_path(self, tmp_path: Path) -> None:
+        """setup_project_path() must not duplicate an existing entry."""
+        from src.app_factory import setup_project_path
+
+        app_dir = tmp_path / "my_app"
+        app_dir.mkdir()
+        fake_main = app_dir / "main.py"
+        fake_main.touch()
+
+        root_str = str(tmp_path)
+        original_path = sys.path.copy()
+        try:
+            # Ensure root is already present
+            if root_str not in sys.path:
+                sys.path.insert(0, root_str)
+            count_before = sys.path.count(root_str)
+            setup_project_path(str(fake_main))
+            count_after = sys.path.count(root_str)
+            assert count_after == count_before
+        finally:
+            sys.path[:] = original_path
 
 
 # ---------------------------------------------------------------------------
