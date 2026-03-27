@@ -13,7 +13,6 @@ Requires Scaleway API keys and a PostgreSQL database with pgvector.
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import tempfile
 import uuid
@@ -39,6 +38,7 @@ from src.app_factory import (
     create_index_route,
     create_health_endpoint,
 )
+from src.sse_utils import format_sse_event, safe_streaming_wrapper
 
 # ---------------------------------------------------------------------------
 # Validate configuration upfront
@@ -135,53 +135,47 @@ async def process_document(doc_id: str):
     doc = _documents[doc_id]
 
     async def event_stream():
-        try:
-            from src.ocr import process_pdf
-            from src.rag import index_document
+        from src.ocr import process_pdf
+        from src.rag import index_document
 
-            yield _sse(
-                {"event": "processing_started", "filename": doc["filename"]}
-            )
+        yield format_sse_event(
+            "processing_started", {"filename": doc["filename"]}
+        )
 
-            pages = process_pdf(doc["path"])
-            doc["pages"] = pages
+        pages = process_pdf(doc["path"])
+        doc["pages"] = pages
 
-            for i, page in enumerate(pages):
-                yield _sse({
-                    "event": "page_processed",
-                    "page": page["page"],
-                    "total": len(pages),
-                    "text": page["text"],
-                })
-                await asyncio.sleep(0.1)  # Small pause for UI animation
-
-            # Index the full text
-            yield _sse({"event": "indexing_started"})
-            full_text = "\n\n".join(p["text"] for p in pages)
-            num_chunks = index_document(
-                source=doc["filename"],
-                content=full_text,
-                metadata={"doc_id": doc_id},
-            )
-            doc["chunks_indexed"] = num_chunks
-
-            yield _sse({
-                "event": "indexing_complete",
-                "chunks": num_chunks,
+        for i, page in enumerate(pages):
+            yield format_sse_event("page_processed", {
+                "page": page["page"],
+                "total": len(pages),
+                "text": page["text"],
             })
+            await asyncio.sleep(0.1)  # Small pause for UI animation
 
-            yield _sse({
-                "event": "complete",
-                "filename": doc["filename"],
-                "pages": len(pages),
-                "chunks": num_chunks,
-            })
+        # Index the full text
+        yield format_sse_event("indexing_started", {})
+        full_text = "\n\n".join(p["text"] for p in pages)
+        num_chunks = index_document(
+            source=doc["filename"],
+            content=full_text,
+            metadata={"doc_id": doc_id},
+        )
+        doc["chunks_indexed"] = num_chunks
 
-        except Exception as exc:
-            yield _sse({"event": "error", "detail": str(exc)})
+        yield format_sse_event("indexing_complete", {
+            "chunks": num_chunks,
+        })
+
+        yield format_sse_event("complete", {
+            "filename": doc["filename"],
+            "pages": len(pages),
+            "chunks": num_chunks,
+        })
 
     return StreamingResponse(
-        event_stream(), media_type="text/event-stream"
+        safe_streaming_wrapper(event_stream()),
+        media_type="text/event-stream",
     )
 
 
@@ -231,15 +225,6 @@ async def list_documents():
         })
 
     return {"documents": docs}
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _sse(data: dict) -> str:
-    """Format a dict as an SSE data line."""
-    return f"data: {json.dumps(data)}\n\n"
 
 
 # ---------------------------------------------------------------------------
