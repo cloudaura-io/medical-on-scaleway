@@ -84,18 +84,6 @@
   }
 
   // -----------------------------------------------------------------------
-  // Text glow effect for streaming words
-  // -----------------------------------------------------------------------
-
-  function applyTextGlow(wordElements) {
-    wordElements.forEach((el, i) => {
-      setTimeout(() => {
-        el.classList.add('word-glow');
-      }, i * 30);
-    });
-  }
-
-  // -----------------------------------------------------------------------
   // Timer
   // -----------------------------------------------------------------------
 
@@ -341,42 +329,54 @@
     setTranscribing();
     startTimer();
 
+    let transcript = '';
+    let wordIndex = 0;
+    let firstChunkReceived = false;
+
     try {
-      // Step 1 — Transcribe
+      // Step 1 — Stream transcription via SSE
       const formData = new FormData();
       formData.append('file', file);
 
-      const transcribeRes = await fetch('/api/transcribe', {
-        method: 'POST',
-        body: formData,
+      await window.SSEClient.postSSE('/api/transcribe-stream', formData, (evt) => {
+        if (evt.event === 'transcript_chunk') {
+          // On first chunk: hide AI spinner, show transcript text
+          if (!firstChunkReceived) {
+            firstChunkReceived = true;
+            aiProcessing.classList.remove('is-visible');
+            transcriptText.classList.add('is-visible');
+          }
+
+          // Append chunk text to accumulator
+          transcript += evt.text;
+
+          // Create word spans for newly arrived words
+          const newWords = evt.text.split(/\s+/).filter(Boolean);
+          for (const word of newWords) {
+            const span = document.createElement('span');
+            span.className = 'word';
+            span.textContent = word + ' ';
+            span.dataset.index = wordIndex++;
+            transcriptText.appendChild(span);
+
+            // Apply glow animation to each new word
+            span.classList.add('word-glow');
+            span.addEventListener('animationend', () => {
+              span.classList.remove('word-glow');
+            });
+          }
+
+          // Auto-scroll transcript container to keep latest content visible
+          transcriptBody.scrollTop = transcriptBody.scrollHeight;
+
+        } else if (evt.event === 'transcript_done') {
+          stopTimer();
+          setTranscriptReady();
+
+        } else if (evt.event === 'error') {
+          throw new Error(evt.detail || 'Transcription error');
+        }
       });
-
-      if (!transcribeRes.ok) {
-        const err = await transcribeRes.json().catch(() => ({}));
-        throw new Error(err.detail || err.error || `Transcription failed (${transcribeRes.status})`);
-      }
-
-      const transcribeData = await transcribeRes.json();
-      const transcript = transcribeData.transcript;
-
-      stopTimer();
-
-      // Display the transcript with glow effect
-      setTranscriptReady();
-      transcriptText.innerHTML = '';
-      const words = transcript.split(/\s+/);
-      const wordElements = [];
-      words.forEach((word, i) => {
-        const span = document.createElement('span');
-        span.className = 'word';
-        span.textContent = word + ' ';
-        span.dataset.index = i;
-        transcriptText.appendChild(span);
-        wordElements.push(span);
-      });
-
-      // Apply the purple text glow animation to each word
-      applyTextGlow(wordElements);
 
       // Step 2 — Extract clinical note
       setExtracting();
