@@ -9,6 +9,7 @@ checks, and index routes — without duplicating boilerplate.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
@@ -18,6 +19,31 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 logger = logging.getLogger(__name__)
+
+
+# ------------------------------------------------------------------
+# Project path setup
+# ------------------------------------------------------------------
+
+def setup_project_path(caller_file: str) -> Path:
+    """Ensure the project root is on ``sys.path``.
+
+    Call this from each app's ``main.py`` with ``__file__`` so that
+    ``from src.…`` imports work regardless of the working directory.
+
+    Args:
+        caller_file: The ``__file__`` attribute of the calling module
+            (must be inside a direct subdirectory of the project root).
+
+    Returns:
+        The resolved project root ``Path``.
+    """
+    project_root = Path(caller_file).resolve().parents[1]
+    root_str = str(project_root)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
+    logger.debug("Project root on sys.path: %s", root_str)
+    return project_root
 
 
 # ------------------------------------------------------------------
