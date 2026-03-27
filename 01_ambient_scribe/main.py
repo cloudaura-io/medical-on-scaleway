@@ -20,21 +20,31 @@ from fastapi import File, UploadFile, Request
 from fastapi.responses import JSONResponse
 
 # ---------------------------------------------------------------------------
-# Project path setup
+# Project path setup — must happen before any `src.*` import
 # ---------------------------------------------------------------------------
-from src.app_factory import setup_project_path
+import sys
 
-setup_project_path(__file__)
+_project_root = str(Path(__file__).resolve().parents[1])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-from src.transcription import transcribe_audio  # noqa: E402
-from src.extraction import extract_clinical_note  # noqa: E402
-from src.config import STT_MODEL  # noqa: E402
-from src.app_factory import (  # noqa: E402
+from src.transcription import transcribe_audio
+from src.extraction import extract_clinical_note
+from src.config import STT_MODEL, validate_config
+from src.app_factory import (
     create_app,
     mount_static,
     create_index_route,
     create_health_endpoint,
 )
+
+# ---------------------------------------------------------------------------
+# Validate configuration upfront
+# ---------------------------------------------------------------------------
+validate_config(required_vars=[
+    "SCW_GENERATIVE_API_URL",
+    "SCW_SECRET_KEY",
+])
 
 # ---------------------------------------------------------------------------
 # FastAPI app

@@ -24,18 +24,31 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
-# Project path setup
+# Project path setup — must happen before any `src.*` import
 # ---------------------------------------------------------------------------
-from src.app_factory import setup_project_path
+import sys
 
-setup_project_path(__file__)
+_project_root = str(Path(__file__).resolve().parents[1])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-from src.app_factory import (  # noqa: E402
+from src.config import validate_config
+from src.app_factory import (
     create_app,
     mount_static,
     create_index_route,
     create_health_endpoint,
 )
+
+# ---------------------------------------------------------------------------
+# Validate configuration upfront
+# ---------------------------------------------------------------------------
+validate_config(required_vars=[
+    "SCW_GENERATIVE_API_URL",
+    "SCW_SECRET_KEY",
+    "SCW_INFERENCE_ENDPOINT",
+    "DATABASE_URL",
+])
 
 # ---------------------------------------------------------------------------
 # App
