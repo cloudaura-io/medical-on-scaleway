@@ -32,6 +32,7 @@ _project_root = str(Path(__file__).resolve().parents[1])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+from src.logging_config import configure_logging
 from src.agent import run_agent, ALL_TOOLS
 from src.rag import search as rag_search
 from src.config import CHAT_MODEL, validate_config
@@ -45,6 +46,13 @@ from src.app_factory import (
 from src.sse_utils import format_sse_event, safe_streaming_wrapper
 
 # ---------------------------------------------------------------------------
+# Logging — must be configured before anything else logs
+# ---------------------------------------------------------------------------
+configure_logging()
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
 # Validate configuration upfront
 # ---------------------------------------------------------------------------
 validate_config(required_vars=[
@@ -53,8 +61,6 @@ validate_config(required_vars=[
     "SCW_INFERENCE_ENDPOINT",
     "DATABASE_URL",
 ])
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Knowledge domains
