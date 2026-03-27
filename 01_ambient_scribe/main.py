@@ -28,10 +28,13 @@ _project_root = str(Path(__file__).resolve().parents[1])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+from starlette.responses import StreamingResponse
+
 from src.logging_config import configure_logging
-from src.transcription import transcribe_audio
+from src.transcription import transcribe_audio, transcribe_audio_stream
 from src.extraction import extract_clinical_note
 from src.config import STT_MODEL, validate_config
+from src.sse_utils import format_sse_event, safe_streaming_wrapper
 from src.app_factory import (
     create_app,
     mount_static,
@@ -88,6 +91,35 @@ async def transcribe(file: UploadFile = File(...)):
         Path(tmp_path).unlink(missing_ok=True)
 
     return {"transcript": text}
+
+
+# -- Streaming Transcription (SSE) -----------------------------------------
+
+
+@app.post("/api/transcribe-stream")
+async def transcribe_stream(file: UploadFile = File(...)):
+    """Stream transcription via SSE as chunks arrive from Voxtral.
+
+    Emits ``transcript_chunk`` events with incremental text and a
+    final ``transcript_done`` event when the stream is exhausted.
+    """
+    suffix = Path(file.filename).suffix if file.filename else ".wav"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    async def _generate():
+        try:
+            for chunk in transcribe_audio_stream(tmp_path):
+                yield format_sse_event("transcript_chunk", {"text": chunk})
+            yield format_sse_event("transcript_done", {})
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
+    return StreamingResponse(
+        safe_streaming_wrapper(_generate()),
+        media_type="text/event-stream",
+    )
 
 
 # -- Extraction -------------------------------------------------------------
