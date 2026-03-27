@@ -16,14 +16,12 @@ Run:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import time
 from pathlib import Path
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
-from sse_starlette.sse import EventSourceResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 # ---------------------------------------------------------------------------
 # Project path setup — must happen before any `src.*` import
@@ -44,6 +42,7 @@ from src.app_factory import (
     create_index_route,
     create_health_endpoint,
 )
+from src.sse_utils import format_sse_event, safe_streaming_wrapper
 
 # ---------------------------------------------------------------------------
 # Validate configuration upfront
@@ -253,13 +252,10 @@ async def research(request: Request):
                         step_count,
                         len(findings),
                     )
-                    yield {
-                        "event": "step",
-                        "data": json.dumps({
-                            "type": "verification",
-                            "data": {"findings": findings},
-                        }),
-                    }
+                    yield format_sse_event("step", {
+                        "type": "verification",
+                        "data": {"findings": findings},
+                    })
                     await asyncio.sleep(0.05)
 
                 step_count += 1
@@ -268,10 +264,7 @@ async def research(request: Request):
                     step_count,
                     step.get("type"),
                 )
-                yield {
-                    "event": "step",
-                    "data": json.dumps(step),
-                }
+                yield format_sse_event("step", step)
                 await asyncio.sleep(0.05)
         except Exception as exc:
             logger.error(
@@ -280,13 +273,10 @@ async def research(request: Request):
                 exc,
                 exc_info=True,
             )
-            yield {
-                "event": "step",
-                "data": json.dumps({
-                    "type": "final",
-                    "data": {"error": str(exc)},
-                }),
-            }
+            yield format_sse_event("step", {
+                "type": "final",
+                "data": {"error": str(exc)},
+            })
         elapsed = time.perf_counter() - t0
         logger.info(
             "Research stream completed, steps=%d, elapsed=%.2fs",
@@ -294,7 +284,10 @@ async def research(request: Request):
             elapsed,
         )
 
-    return EventSourceResponse(event_generator())
+    return StreamingResponse(
+        safe_streaming_wrapper(event_generator()),
+        media_type="text/event-stream",
+    )
 
 
 @app.get("/api/domains")
