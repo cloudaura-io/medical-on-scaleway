@@ -12,59 +12,47 @@ Run:
 
 from __future__ import annotations
 
-import sys
 import time
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import File, UploadFile, Request
+from fastapi.responses import JSONResponse
 
 # ---------------------------------------------------------------------------
-# Path fixup so `from src.…` resolves to the repo root
+# Project path setup
 # ---------------------------------------------------------------------------
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.app_factory import setup_project_path
+
+setup_project_path(__file__)
 
 from src.transcription import transcribe_audio  # noqa: E402
 from src.extraction import extract_clinical_note  # noqa: E402
 from src.config import STT_MODEL  # noqa: E402
+from src.app_factory import (  # noqa: E402
+    create_app,
+    mount_static,
+    create_index_route,
+    create_health_endpoint,
+)
 
 # ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
 
-app = FastAPI(
+STATIC_DIR = Path(__file__).parent / "static"
+
+app = create_app(
     title="Ambient Scribe — Scaleway Medical AI Lab",
     version="1.0.0",
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-STATIC_DIR = Path(__file__).parent / "static"
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+mount_static(app, STATIC_DIR)
+create_index_route(app, STATIC_DIR)
+create_health_endpoint(app, model=STT_MODEL)
 
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-
-
-@app.get("/", response_class=HTMLResponse)
-async def index():
-    """Serve the single-page frontend."""
-    html_path = STATIC_DIR / "index.html"
-    return HTMLResponse(content=html_path.read_text(), status_code=200)
-
-
-@app.get("/api/health")
-async def health():
-    return {"status": "ok", "model": STT_MODEL}
 
 
 # -- Transcription ----------------------------------------------------------
@@ -95,7 +83,10 @@ async def extract(request: Request):
     body = await request.json()
     transcript = body.get("transcript", "")
     if not transcript:
-        return JSONResponse({"error": "transcript field is required"}, status_code=400)
+        return JSONResponse(
+            {"error": "transcript field is required"},
+            status_code=400,
+        )
 
     start = time.perf_counter()
     result = extract_clinical_note(transcript)
