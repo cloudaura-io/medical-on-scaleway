@@ -15,63 +15,71 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import sys
 import tempfile
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
-# Path setup — allow `from src.ocr import …` when running from this dir
+# Project path setup
 # ---------------------------------------------------------------------------
-_PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
+from src.app_factory import setup_project_path
+
+setup_project_path(__file__)
+
+from src.app_factory import (  # noqa: E402
+    create_app,
+    mount_static,
+    create_index_route,
+    create_health_endpoint,
+)
 
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
-app = FastAPI(title="Medical Document Intelligence", version="0.1.0")
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = create_app(title="Medical Document Intelligence", version="0.1.0")
+mount_static(app, STATIC_DIR)
+create_index_route(app, STATIC_DIR)
 
-# Static files
-_STATIC_DIR = Path(__file__).resolve().parent / "static"
-app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
-
-# ---------------------------------------------------------------------------
 # In-memory state
-# ---------------------------------------------------------------------------
 _UPLOAD_DIR = Path(tempfile.mkdtemp(prefix="medocr_"))
 
 # doc_id -> {filename, path, pages: [{page, text}], chunks_indexed}
 _documents: dict[str, dict] = {}
 
+create_health_endpoint(
+    app,
+    service="document-intelligence",
+    documents_loaded=lambda: len(_documents),
+)
+
 # ---------------------------------------------------------------------------
 # Request / response models
 # ---------------------------------------------------------------------------
 
+
 class QueryRequest(BaseModel):
+    """Request body for document queries."""
+
     query: str
     top_k: int = 5
 
 
 class UploadResponse(BaseModel):
+    """Response body for document uploads."""
+
     doc_id: str
     filename: str
 
 
 class QueryResponse(BaseModel):
+    """Response body for document queries."""
+
     answer: str
     sources: list[dict]
 
@@ -80,26 +88,14 @@ class QueryResponse(BaseModel):
 # Routes
 # ---------------------------------------------------------------------------
 
-@app.get("/")
-async def index():
-    """Serve the single-page frontend."""
-    return FileResponse(str(_STATIC_DIR / "index.html"))
-
-
-@app.get("/api/health")
-async def health():
-    return {
-        "status": "healthy",
-        "service": "document-intelligence",
-        "documents_loaded": len(_documents),
-    }
-
 
 @app.post("/api/upload", response_model=UploadResponse)
 async def upload_document(file: UploadFile = File(...)):
     """Accept a PDF upload and store it locally."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
+        raise HTTPException(
+            status_code=400, detail="Only PDF files are accepted."
+        )
 
     doc_id = str(uuid.uuid4())
     save_path = _UPLOAD_DIR / f"{doc_id}.pdf"
@@ -130,7 +126,9 @@ async def process_document(doc_id: str):
             from src.ocr import process_pdf
             from src.rag import index_document
 
-            yield _sse({"event": "processing_started", "filename": doc["filename"]})
+            yield _sse(
+                {"event": "processing_started", "filename": doc["filename"]}
+            )
 
             pages = process_pdf(doc["path"])
             doc["pages"] = pages
@@ -169,7 +167,9 @@ async def process_document(doc_id: str):
         except Exception as exc:
             yield _sse({"event": "error", "detail": str(exc)})
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_stream(), media_type="text/event-stream"
+    )
 
 
 @app.post("/api/query", response_model=QueryResponse)
@@ -181,7 +181,10 @@ async def query_documents(req: QueryRequest):
         results = search(req.query, top_k=req.top_k)
         if not results:
             return QueryResponse(
-                answer="No relevant documents found. Please upload and process documents first.",
+                answer=(
+                    "No relevant documents found. "
+                    "Please upload and process documents first."
+                ),
                 sources=[],
             )
 
@@ -189,7 +192,11 @@ async def query_documents(req: QueryRequest):
         return QueryResponse(
             answer=answer,
             sources=[
-                {"source": r["source"], "content": r["content"][:300], "score": r["score"]}
+                {
+                    "source": r["source"],
+                    "content": r["content"][:300],
+                    "score": r["score"],
+                }
                 for r in results
             ],
         )
