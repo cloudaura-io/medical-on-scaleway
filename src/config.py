@@ -32,6 +32,49 @@ def _require(var: str) -> str:
     return value
 
 
+# All environment variables required for the full platform to operate.
+ALL_REQUIRED_VARS: list[str] = [
+    "SCW_GENERATIVE_API_URL",
+    "SCW_SECRET_KEY",
+    "SCW_INFERENCE_ENDPOINT",
+    "DATABASE_URL",
+    "SCW_S3_ENDPOINT",
+    "SCW_ACCESS_KEY",
+    "SCW_S3_BUCKET",
+]
+
+
+def validate_config(
+    required_vars: list[str] | None = None,
+) -> None:
+    """Check that all required environment variables are set.
+
+    Call this at application startup — before creating any clients —
+    so that missing configuration is surfaced immediately with a
+    single, clear error message rather than failing on the first
+    API call.
+
+    Args:
+        required_vars: An explicit list of env-var names to check.
+            Defaults to :data:`ALL_REQUIRED_VARS` when *None*.
+
+    Raises:
+        EnvironmentError: If one or more required variables are unset
+            or empty.  The error message lists every missing variable.
+    """
+    vars_to_check = required_vars if required_vars is not None else ALL_REQUIRED_VARS
+    missing = [var for var in vars_to_check if not os.getenv(var)]
+
+    if missing:
+        names = ", ".join(missing)
+        msg = (
+            f"Missing required environment variable(s): {names}. "
+            "Set them in your .env file or shell environment."
+        )
+        logger.error(msg)
+        raise EnvironmentError(msg)
+
+
 # ---------------------------------------------------------------------------
 # OpenAI clients (lazily created so import alone never fails)
 # ---------------------------------------------------------------------------
