@@ -26,22 +26,34 @@ from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
 # ---------------------------------------------------------------------------
-# Project path setup
+# Project path setup — must happen before any `src.*` import
 # ---------------------------------------------------------------------------
-from src.app_factory import setup_project_path
+import sys
 
-setup_project_path(__file__)
+_project_root = str(Path(__file__).resolve().parents[1])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-from src.agent import run_agent, ALL_TOOLS  # noqa: E402
-from src.rag import search as rag_search  # noqa: E402
-from src.config import CHAT_MODEL  # noqa: E402
-from src.verification import verify_claims  # noqa: E402
-from src.app_factory import (  # noqa: E402
+from src.agent import run_agent, ALL_TOOLS
+from src.rag import search as rag_search
+from src.config import CHAT_MODEL, validate_config
+from src.verification import verify_claims
+from src.app_factory import (
     create_app,
     mount_static,
     create_index_route,
     create_health_endpoint,
 )
+
+# ---------------------------------------------------------------------------
+# Validate configuration upfront
+# ---------------------------------------------------------------------------
+validate_config(required_vars=[
+    "SCW_GENERATIVE_API_URL",
+    "SCW_SECRET_KEY",
+    "SCW_INFERENCE_ENDPOINT",
+    "DATABASE_URL",
+])
 
 logger = logging.getLogger(__name__)
 
