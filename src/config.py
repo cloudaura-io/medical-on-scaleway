@@ -37,6 +37,7 @@ ALL_REQUIRED_VARS: list[str] = [
     "SCW_GENERATIVE_API_URL",
     "SCW_SECRET_KEY",
     "SCW_INFERENCE_ENDPOINT",
+    "SCW_VOXTRAL_REALTIME_ENDPOINT",
     "DATABASE_URL",
     "SCW_S3_ENDPOINT",
     "SCW_ACCESS_KEY",
@@ -90,6 +91,24 @@ def get_generative_client():
     logger.info("Initialising generative API client")
     base_url = _require("SCW_GENERATIVE_API_URL")
     logger.debug("Generative API base_url=%s", base_url)
+    return OpenAI(
+        base_url=base_url,
+        api_key=_require("SCW_SECRET_KEY"),
+    )
+
+
+@lru_cache(maxsize=1)
+def get_realtime_client():
+    """OpenAI client pointing at the self-hosted Voxtral Realtime deployment.
+
+    Dedicated GPU endpoint for realtime speech-to-text streaming — keeps
+    audio data on isolated European infrastructure.
+    """
+    from openai import OpenAI
+
+    logger.info("Initialising Voxtral Realtime client")
+    base_url = _require("SCW_VOXTRAL_REALTIME_ENDPOINT")
+    logger.debug("Voxtral Realtime base_url=%s", base_url)
     return OpenAI(
         base_url=base_url,
         api_key=_require("SCW_SECRET_KEY"),
@@ -166,3 +185,4 @@ CHAT_MODEL = "mistral-small-3.2-24b-instruct-2506"  # also handles vision/OCR
 STT_MODEL = "voxtral-small-24b-2507"
 VISION_MODEL = CHAT_MODEL  # pixtral-12b-2409 is deprecated; Mistral Small 3.2 has native vision
 EMBEDDING_MODEL = "bge-multilingual-gemma2"
+REALTIME_STT_MODEL = "voxtral-mini-4b-realtime-2602"
