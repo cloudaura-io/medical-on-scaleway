@@ -64,6 +64,14 @@ def configure_logging(
         )
         handler.setFormatter(formatter)
         root.addHandler(handler)
+
+        # Force uvicorn loggers to use the same format instead of
+        # their own handlers (which bypass the root logger).
+        for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+            uv_logger = logging.getLogger(name)
+            uv_logger.handlers.clear()
+            uv_logger.propagate = True
+
         _CONFIGURED = True
     else:
         # Update existing handler levels on reconfiguration.
