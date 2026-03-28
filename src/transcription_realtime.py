@@ -24,6 +24,7 @@ from typing import AsyncIterator
 import websockets
 
 from src.config import REALTIME_STT_MODEL, get_realtime_ws_url
+from src.transcription import transcribe_audio_diarized
 
 logger = logging.getLogger(__name__)
 
@@ -189,3 +190,46 @@ async def stream_file_realtime(pcm_data: bytes) -> AsyncIterator[str]:
     finally:
         await send_task
         await transcriber.disconnect()
+
+
+# ---------------------------------------------------------------------------
+# Health check & fallback
+# ---------------------------------------------------------------------------
+
+async def is_realtime_available() -> bool:
+    """Check whether the vLLM realtime endpoint is reachable."""
+    import os
+    url = os.getenv("SCW_VOXTRAL_REALTIME_ENDPOINT", "")
+    if not url:
+        return False
+
+    try:
+        import asyncio
+        ws_url = get_realtime_ws_url()
+        ws = await asyncio.wait_for(websockets.connect(ws_url), timeout=3.0)
+        await ws.close()
+        return True
+    except Exception:
+        logger.warning("Voxtral Realtime endpoint not reachable")
+        return False
+
+
+async def transcribe_with_fallback(audio_path: str) -> AsyncIterator[str]:
+    """Transcribe audio, preferring realtime streaming with batch fallback.
+
+    If the vLLM realtime endpoint is reachable, decodes the file to PCM
+    and streams through the realtime pipeline yielding text deltas.
+
+    If unavailable, falls back to the existing batch diarized transcription
+    (``voxtral-small-24b-2507`` on Generative APIs) and yields the complete
+    result as a single string.
+    """
+    if await is_realtime_available():
+        logger.info("Using realtime transcription for %s", audio_path)
+        pcm = decode_audio_to_pcm(audio_path)
+        async for delta in stream_file_realtime(pcm):
+            yield delta
+    else:
+        logger.info("Falling back to batch transcription for %s", audio_path)
+        text = transcribe_audio_diarized(audio_path)
+        yield text
