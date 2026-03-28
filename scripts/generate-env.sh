@@ -36,10 +36,11 @@ DB_HOST=$(get_tf_output "database_host")
 DB_PORT=$(get_tf_output "database_port")
 INFERENCE_ENDPOINT=$(get_tf_output "inference_endpoint")
 BUCKET_NAME=$(get_tf_output "object_storage_bucket_name")
+VOXTRAL_REALTIME_ENDPOINT=$(get_tf_output "voxtral_realtime_endpoint")
 
 # Read Scaleway credentials from any .tfvars file in infrastructure/
 get_tfvar() {
-    grep "^${1}" "$INFRA_DIR"/*.tfvars "$INFRA_DIR"/*.auto.tfvars 2>/dev/null \
+    grep -h "^${1}" "$INFRA_DIR"/*.tfvars 2>/dev/null \
         | head -1 | sed 's/.*=\s*"\(.*\)"/\1/'
 }
 
@@ -64,6 +65,7 @@ check_var() {
 echo "Validating outputs..."
 check_var DATABASE_URL
 check_var INFERENCE_ENDPOINT
+check_var VOXTRAL_REALTIME_ENDPOINT
 check_var BUCKET_NAME
 check_var SCW_ACCESS_KEY
 check_var SCW_SECRET_KEY
@@ -100,6 +102,9 @@ SCW_GENERATIVE_API_URL=https://api.scaleway.ai/v1
 
 # Scaleway Managed Inference (BGE embeddings on dedicated L4 GPU)
 SCW_INFERENCE_ENDPOINT=${INFERENCE_ENDPOINT}
+
+# Scaleway Managed Inference (Voxtral Realtime STT on dedicated L4 GPU)
+SCW_VOXTRAL_REALTIME_ENDPOINT=${VOXTRAL_REALTIME_ENDPOINT}
 
 # PostgreSQL + pgvector (from OpenTofu)
 DATABASE_URL=${DATABASE_URL}

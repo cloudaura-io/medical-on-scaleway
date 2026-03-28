@@ -66,3 +66,15 @@ output "inference_deployment_id" {
   description = "ID of the managed inference deployment"
   value       = scaleway_inference_deployment.embedding.id
 }
+
+# --- Voxtral Realtime (STT streaming) ---
+
+output "voxtral_realtime_endpoint" {
+  description = "Public endpoint for the Voxtral Realtime STT model"
+  value       = "${scaleway_inference_deployment.voxtral_realtime.public_endpoint[0].url}/v1"
+}
+
+output "voxtral_realtime_deployment_id" {
+  description = "ID of the Voxtral Realtime inference deployment"
+  value       = scaleway_inference_deployment.voxtral_realtime.id
+}
