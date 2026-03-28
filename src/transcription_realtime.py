@@ -27,6 +27,9 @@ from src.config import REALTIME_STT_MODEL, get_realtime_ws_url
 
 logger = logging.getLogger(__name__)
 
+# Size of each audio chunk sent to vLLM (bytes).  4096 bytes = 128ms at 16kHz mono PCM16.
+CHUNK_SIZE = 4096
+
 
 class RealtimeTranscriber:
     """Async WebSocket client for Voxtral Realtime transcription on vLLM."""
@@ -120,3 +123,69 @@ class RealtimeTranscriber:
             await self._ws.close()
             logger.info("Disconnected from Voxtral Realtime")
             self._ws = None
+
+
+# ---------------------------------------------------------------------------
+# File decoding
+# ---------------------------------------------------------------------------
+
+def decode_audio_to_pcm(audio_path: str) -> bytes:
+    """Decode an audio file (wav/mp3/ogg) to raw PCM16 mono 16kHz bytes.
+
+    Uses the ``wave`` module for WAV files.  For other formats, callers
+    should convert to WAV first (e.g. via ffmpeg).
+    """
+    import wave
+
+    logger.info("Decoding audio to PCM16: %s", audio_path)
+    with wave.open(audio_path, "rb") as wf:
+        n_channels = wf.getnchannels()
+        sampwidth = wf.getsampwidth()
+        framerate = wf.getframerate()
+        n_frames = wf.getnframes()
+        raw = wf.readframes(n_frames)
+
+    logger.info(
+        "WAV: channels=%d, sampwidth=%d, rate=%d, frames=%d",
+        n_channels, sampwidth, framerate, n_frames,
+    )
+
+    # If stereo, take only the left channel
+    if n_channels == 2 and sampwidth == 2:
+        import struct
+        samples = struct.unpack(f"<{n_frames * 2}h", raw)
+        raw = struct.pack(f"<{n_frames}h", *samples[::2])
+
+    return raw
+
+
+# ---------------------------------------------------------------------------
+# File-to-realtime streaming
+# ---------------------------------------------------------------------------
+
+async def stream_file_realtime(pcm_data: bytes) -> AsyncIterator[str]:
+    """Stream pre-decoded PCM audio through the Voxtral Realtime transcriber.
+
+    Splits *pcm_data* into chunks, sends them to the model, and yields
+    text deltas as they arrive.  Audio is sent in a background task so
+    that receiving deltas can happen concurrently.
+    """
+    transcriber = RealtimeTranscriber()
+    await transcriber.connect()
+
+    async def _send_audio():
+        for offset in range(0, len(pcm_data), CHUNK_SIZE):
+            chunk = pcm_data[offset : offset + CHUNK_SIZE]
+            await transcriber.send_audio(chunk)
+        await transcriber.finish()
+
+    # Launch audio sending concurrently
+    import asyncio
+    send_task = asyncio.create_task(_send_audio())
+
+    try:
+        async for delta in transcriber.receive_deltas():
+            yield delta
+    finally:
+        await send_task
+        await transcriber.disconnect()
