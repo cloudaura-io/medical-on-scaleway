@@ -32,7 +32,7 @@ if _project_root not in sys.path:
 from starlette.responses import StreamingResponse
 
 from src.logging_config import configure_logging
-from src.transcription import transcribe_audio, transcribe_audio_stream
+from src.transcription import transcribe_audio, transcribe_audio_stream, transcribe_audio_diarized
 from src.extraction import extract_clinical_note
 from src.config import STT_MODEL, validate_config
 from src.sse_utils import format_sse_event, safe_streaming_wrapper
@@ -92,14 +92,14 @@ create_health_endpoint(app, model=STT_MODEL)
 
 @app.post("/api/transcribe")
 async def transcribe(file: UploadFile = File(...)):
-    """Transcribe uploaded audio via Voxtral on Scaleway Generative APIs."""
+    """Transcribe uploaded audio with speaker diarization via Voxtral chat completions."""
     suffix = Path(file.filename).suffix if file.filename else ".wav"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
 
     try:
-        text = transcribe_audio(tmp_path)
+        text = transcribe_audio_diarized(tmp_path)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
