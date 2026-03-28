@@ -353,3 +353,44 @@ describe('Diarized token drip queue', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tests: README accuracy — pip install must not include stale packages
+// ---------------------------------------------------------------------------
+
+const readmeSource = readFileSync(resolve(__dirname, '..', 'README.md'), 'utf-8');
+
+describe('README accuracy', () => {
+  it('README pip install command must NOT include sse-starlette', () => {
+    assert.ok(
+      !readmeSource.includes('sse-starlette'),
+      'README must not reference sse-starlette — it is no longer a dependency for this showcase',
+    );
+  });
+
+  it('README pip install command must NOT include httpx', () => {
+    assert.ok(
+      !readmeSource.includes('httpx'),
+      'README must not reference httpx — it is no longer a dependency for this showcase',
+    );
+  });
+
+  it('README should reference the diarized transcription flow', () => {
+    // The README description should mention transcription (not streaming)
+    assert.ok(
+      readmeSource.includes('transcri'),
+      'README must mention transcription in its description',
+    );
+  });
+
+  it('README must NOT reference SSE streaming or streaming endpoint', () => {
+    assert.ok(
+      !readmeSource.includes('transcribe-stream'),
+      'README must not reference the old /api/transcribe-stream endpoint',
+    );
+    assert.ok(
+      !readmeSource.includes('sse-starlette'),
+      'README must not reference sse-starlette',
+    );
+  });
+});
