@@ -5,7 +5,7 @@ Showcase 3 — Cross-domain Medical Research Agent
 FastAPI backend that:
   1. Accepts natural-language medical queries
   2. Runs a tool-calling agent loop across multiple knowledge domains
-  3. Streams structured steps via SSE (thinking → tool calls → synthesis → verification)
+  3. Streams structured steps via SSE (thinking -> tool calls -> synthesis -> verification)
 
 Requires Scaleway API keys and a pgvector knowledge base (see src/config.py).
 
@@ -16,37 +16,51 @@ Run:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import sys
 import time
 from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from sse_starlette.sse import EventSourceResponse
+from fastapi import Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
 # ---------------------------------------------------------------------------
-# Logging configuration
+# Project path setup — must happen before any `src.*` import
 # ---------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+import sys
+
+_project_root = str(Path(__file__).resolve().parents[1])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+from src.logging_config import configure_logging
+from src.agent import run_agent, ALL_TOOLS
+from src.rag import search as rag_search
+from src.config import CHAT_MODEL, validate_config
+from src.verification import verify_claims
+from src.app_factory import (
+    create_app,
+    mount_static,
+    create_index_route,
+    create_health_endpoint,
 )
+from src.sse_utils import format_sse_event, safe_streaming_wrapper
+
+# ---------------------------------------------------------------------------
+# Logging — must be configured before anything else logs
+# ---------------------------------------------------------------------------
+configure_logging()
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Path fixup so `from src.…` resolves to the repo root
+# Validate configuration upfront
 # ---------------------------------------------------------------------------
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.agent import run_agent, ALL_TOOLS  # noqa: E402
-from src.rag import search as rag_search  # noqa: E402
-from src.config import CHAT_MODEL  # noqa: E402
-from src.verification import verify_claims  # noqa: E402
+validate_config(required_vars=[
+    "SCW_GENERATIVE_API_URL",
+    "SCW_SECRET_KEY",
+    "SCW_INFERENCE_ENDPOINT",
+    "DATABASE_URL",
+])
 
 # ---------------------------------------------------------------------------
 # Knowledge domains
@@ -55,25 +69,43 @@ from src.verification import verify_claims  # noqa: E402
 KNOWLEDGE_DOMAINS = [
     {
         "name": "Pharmacology",
-        "description": "Drug interactions, mechanisms of action, pharmacokinetics, and adverse effects",
+        "description": (
+            "Drug interactions, mechanisms of action, "
+            "pharmacokinetics, and adverse effects"
+        ),
         "chunks": 45,
     },
     {
         "name": "Cardiology",
-        "description": "Cardiac conditions, antiarrhythmic protocols, heart failure management",
+        "description": (
+            "Cardiac conditions, antiarrhythmic protocols, "
+            "heart failure management"
+        ),
         "chunks": 38,
     },
     {
         "name": "Clinical Trials",
-        "description": "Published trial data, endpoints, inclusion/exclusion criteria, outcomes",
+        "description": (
+            "Published trial data, endpoints, "
+            "inclusion/exclusion criteria, outcomes"
+        ),
         "chunks": 27,
     },
 ]
 
 SAMPLE_QUERIES = [
-    "Patient on empagliflozin for diabetes. Cardiologist wants to start amiodarone. Any concerns?",
-    "Compare statin options for a diabetic patient with elevated LDL and mild liver enzyme elevation",
-    "What monitoring is needed when initiating amiodarone in an elderly patient with diabetes?",
+    (
+        "Patient on empagliflozin for diabetes. "
+        "Cardiologist wants to start amiodarone. Any concerns?"
+    ),
+    (
+        "Compare statin options for a diabetic patient "
+        "with elevated LDL and mild liver enzyme elevation"
+    ),
+    (
+        "What monitoring is needed when initiating amiodarone "
+        "in an elderly patient with diabetes?"
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -81,28 +113,61 @@ SAMPLE_QUERIES = [
 # ---------------------------------------------------------------------------
 
 
-def _handle_search_medical_knowledge(query: str, domain: str | None = None) -> list[dict]:
+def _handle_search_medical_knowledge(
+    query: str, domain: str | None = None
+) -> list[dict]:
     """Search the RAG knowledge base."""
-    logger.info("_handle_search_medical_knowledge called, query=%r, domain=%s", query[:80], domain)
+    logger.info(
+        "_handle_search_medical_knowledge called, "
+        "query=%r, domain=%s",
+        query[:80],
+        domain,
+    )
     results = rag_search(query, top_k=5, domain=domain)
-    logger.info("_handle_search_medical_knowledge completed, results=%d", len(results))
+    logger.info(
+        "_handle_search_medical_knowledge completed, results=%d",
+        len(results),
+    )
     return results
 
 
-def _handle_check_drug_interactions(drug1: str, drug2: str) -> dict:
+def _handle_check_drug_interactions(
+    drug1: str, drug2: str
+) -> dict:
     """Check drug interactions via knowledge base search."""
-    logger.info("_handle_check_drug_interactions called, drug1=%s, drug2=%s", drug1, drug2)
-    results = rag_search(f"{drug1} {drug2} drug interaction", top_k=3, domain="pharmacology")
+    logger.info(
+        "_handle_check_drug_interactions called, "
+        "drug1=%s, drug2=%s",
+        drug1,
+        drug2,
+    )
+    results = rag_search(
+        f"{drug1} {drug2} drug interaction",
+        top_k=3,
+        domain="pharmacology",
+    )
     if results:
-        logger.info("Drug interaction evidence found, sources=%d", len(results[:3]))
+        logger.info(
+            "Drug interaction evidence found, sources=%d",
+            len(results[:3]),
+        )
         return {
             "drug1": drug1,
             "drug2": drug2,
             "evidence": [r["content"] for r in results[:3]],
             "sources": [r["source"] for r in results[:3]],
         }
-    logger.warning("No drug interaction evidence found for %s + %s", drug1, drug2)
-    return {"drug1": drug1, "drug2": drug2, "evidence": [], "sources": []}
+    logger.warning(
+        "No drug interaction evidence found for %s + %s",
+        drug1,
+        drug2,
+    )
+    return {
+        "drug1": drug1,
+        "drug2": drug2,
+        "evidence": [],
+        "sources": [],
+    }
 
 
 TOOL_HANDLERS = {
@@ -114,28 +179,21 @@ TOOL_HANDLERS = {
 # FastAPI app
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Showcase 3 — Research Agent", version="0.1.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 STATIC_DIR = Path(__file__).parent / "static"
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+app = create_app(title="Showcase 3 — Research Agent", version="0.1.0")
+mount_static(app, STATIC_DIR)
+create_index_route(app, STATIC_DIR)
+create_health_endpoint(
+    app,
+    model=CHAT_MODEL,
+    domains=lambda: len(KNOWLEDGE_DOMAINS),
+)
 
 
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-
-
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    logger.debug("Serving index.html")
-    index = STATIC_DIR / "index.html"
-    return HTMLResponse(index.read_text())
 
 
 @app.post("/api/research")
@@ -145,7 +203,9 @@ async def research(request: Request):
     query = body.get("query", "")
     if not query:
         logger.warning("Research request received with empty query")
-        return JSONResponse({"error": "query is required"}, status_code=400)
+        return JSONResponse(
+            {"error": "query is required"}, status_code=400
+        )
 
     logger.info("Research request received, query=%r", query[:120])
 
@@ -153,63 +213,102 @@ async def research(request: Request):
         step_count = 0
         t0 = time.perf_counter()
         try:
-            for step in run_agent(query, tool_handlers=TOOL_HANDLERS, tools=ALL_TOOLS):
-                if step.get("type") == "final" and isinstance(step.get("data"), str):
-                    logger.info("Running Chain-of-Verification on final response")
+            for step in run_agent(
+                query,
+                tool_handlers=TOOL_HANDLERS,
+                tools=ALL_TOOLS,
+            ):
+                if (
+                    step.get("type") == "final"
+                    and isinstance(step.get("data"), str)
+                ):
+                    logger.info(
+                        "Running Chain-of-Verification on "
+                        "final response"
+                    )
                     findings = []
                     try:
                         findings = verify_claims(
                             step["data"],
-                            search_fn=lambda q: rag_search(q, top_k=3),
+                            search_fn=lambda q: rag_search(
+                                q, top_k=3
+                            ),
                         )
-                        logger.info("CoVe completed, findings=%d", len(findings))
+                        logger.info(
+                            "CoVe completed, findings=%d",
+                            len(findings),
+                        )
                     except Exception as exc:
-                        logger.error("CoVe verification failed: %s", exc, exc_info=True)
-                        findings = [{"claim": "Verification failed", "status": "NO_EVIDENCE", "explanation": str(exc), "evidence": "", "source": None}]
+                        logger.error(
+                            "CoVe verification failed: %s",
+                            exc,
+                            exc_info=True,
+                        )
+                        findings = [{
+                            "claim": "Verification failed",
+                            "status": "NO_EVIDENCE",
+                            "explanation": str(exc),
+                            "evidence": "",
+                            "source": None,
+                        }]
                     step_count += 1
-                    logger.debug("SSE event #%d, type=verification, findings=%d", step_count, len(findings))
-                    yield {
-                        "event": "step",
-                        "data": json.dumps({"type": "verification", "data": {"findings": findings}}),
-                    }
+                    logger.debug(
+                        "SSE event #%d, type=verification, "
+                        "findings=%d",
+                        step_count,
+                        len(findings),
+                    )
+                    yield format_sse_event("step", {
+                        "type": "verification",
+                        "data": {"findings": findings},
+                    })
                     await asyncio.sleep(0.05)
 
                 step_count += 1
-                logger.debug("SSE event #%d, type=%s", step_count, step.get("type"))
-                yield {
-                    "event": "step",
-                    "data": json.dumps(step),
-                }
+                logger.debug(
+                    "SSE event #%d, type=%s",
+                    step_count,
+                    step.get("type"),
+                )
+                yield format_sse_event("step", step)
                 await asyncio.sleep(0.05)
         except Exception as exc:
-            logger.error("Agent raised exception for query=%r: %s", query[:80], exc, exc_info=True)
-            yield {
-                "event": "step",
-                "data": json.dumps({"type": "final", "data": {"error": str(exc)}}),
-            }
+            logger.error(
+                "Agent raised exception for query=%r: %s",
+                query[:80],
+                exc,
+                exc_info=True,
+            )
+            yield format_sse_event("step", {
+                "type": "final",
+                "data": {"error": str(exc)},
+            })
         elapsed = time.perf_counter() - t0
-        logger.info("Research stream completed, steps=%d, elapsed=%.2fs", step_count, elapsed)
+        logger.info(
+            "Research stream completed, steps=%d, elapsed=%.2fs",
+            step_count,
+            elapsed,
+        )
 
-    return EventSourceResponse(event_generator())
+    return StreamingResponse(
+        safe_streaming_wrapper(event_generator()),
+        media_type="text/event-stream",
+    )
 
 
 @app.get("/api/domains")
 async def domains():
-    logger.debug("Serving domains, count=%d", len(KNOWLEDGE_DOMAINS))
+    """Return the list of knowledge domains."""
+    logger.debug(
+        "Serving domains, count=%d", len(KNOWLEDGE_DOMAINS)
+    )
     return JSONResponse(KNOWLEDGE_DOMAINS)
 
 
 @app.get("/api/sample-queries")
 async def sample_queries():
-    logger.debug("Serving sample queries, count=%d", len(SAMPLE_QUERIES))
+    """Return sample queries for the UI."""
+    logger.debug(
+        "Serving sample queries, count=%d", len(SAMPLE_QUERIES)
+    )
     return JSONResponse(SAMPLE_QUERIES)
-
-
-@app.get("/api/health")
-async def health():
-    logger.debug("Health check requested")
-    return JSONResponse({
-        "status": "ok",
-        "model": CHAT_MODEL,
-        "domains": len(KNOWLEDGE_DOMAINS),
-    })

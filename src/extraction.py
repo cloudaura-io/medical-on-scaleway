@@ -8,9 +8,13 @@ conforms to ClinicalNote.
 from __future__ import annotations
 
 import json
+import logging
 
 from src.config import get_generative_client, CHAT_MODEL
+from src.logging_config import timed_operation
 from src.models import CLINICAL_NOTE_SCHEMA
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # System prompt
@@ -34,6 +38,7 @@ Rules:
 # Public API
 # ---------------------------------------------------------------------------
 
+@timed_operation
 def extract_clinical_note(transcript: str) -> dict:
     """Extract a structured clinical note from a consultation transcript.
 
@@ -47,6 +52,10 @@ def extract_clinical_note(transcript: str) -> dict:
     dict
         Parsed JSON matching the ClinicalNote schema.
     """
+    logger.info(
+        "extract_clinical_note called, transcript_length=%d",
+        len(transcript),
+    )
     client = get_generative_client()
 
     response = client.chat.completions.create(

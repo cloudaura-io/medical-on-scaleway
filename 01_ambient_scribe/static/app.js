@@ -31,7 +31,6 @@
   const statusExtraction  = $('#statusExtraction');
   const statusValidation  = $('#statusValidation');
   const statusValText     = $('#statusValidationText');
-  const checkmarkIcon     = $('#checkmarkIcon');
 
   // -----------------------------------------------------------------------
   // State
@@ -81,18 +80,6 @@
       clearInterval(sparkleInterval);
       sparkleInterval = null;
     }
-  }
-
-  // -----------------------------------------------------------------------
-  // Text glow effect for streaming words
-  // -----------------------------------------------------------------------
-
-  function applyTextGlow(wordElements) {
-    wordElements.forEach((el, i) => {
-      setTimeout(() => {
-        el.classList.add('word-glow');
-      }, i * 30);
-    });
   }
 
   // -----------------------------------------------------------------------
@@ -341,8 +328,66 @@
     setTranscribing();
     startTimer();
 
+    let wordIndex = 0;
+
+    // Token drip queue — feeds tokens into the DOM with a typewriter effect
+    const tokenQueue = [];
+    let dripping = false;
+    let allQueued = false;
+    let resolveDrip = null;
+    const dripPromise = new Promise((r) => { resolveDrip = r; });
+    const TOKEN_INTERVAL_MS = 30;
+
+    function drainQueue() {
+      if (dripping) return;
+      dripping = true;
+
+      function step() {
+        if (tokenQueue.length === 0) {
+          dripping = false;
+          if (allQueued) {
+            resolveDrip();
+          }
+          return;
+        }
+
+        const text = tokenQueue.shift();
+
+        // On first token, hide spinner and show transcript area
+        if (wordIndex === 0) {
+          aiProcessing.classList.remove('is-visible');
+          transcriptText.classList.add('is-visible');
+        }
+
+        // If the token contains a newline, render <br> elements instead of a span
+        if (/\n/.test(text)) {
+          const nlCount = (text.match(/\n/g) || []).length;
+          for (let i = 0; i < nlCount; i++) {
+            transcriptText.appendChild(document.createElement('br'));
+          }
+        } else {
+          const span = document.createElement('span');
+          span.className = 'word';
+          span.textContent = text;
+          span.dataset.index = wordIndex++;
+          transcriptText.appendChild(span);
+
+          span.classList.add('word-glow');
+          span.addEventListener('animationend', () => {
+            span.classList.remove('word-glow');
+          });
+        }
+
+        transcriptBody.scrollTop = transcriptBody.scrollHeight;
+
+        setTimeout(step, TOKEN_INTERVAL_MS);
+      }
+
+      step();
+    }
+
     try {
-      // Step 1 — Transcribe
+      // Step 1 — Transcribe audio via diarized endpoint
       const formData = new FormData();
       formData.append('file', file);
 
@@ -361,22 +406,19 @@
 
       stopTimer();
 
-      // Display the transcript with glow effect
-      setTranscriptReady();
-      transcriptText.innerHTML = '';
-      const words = transcript.split(/\s+/);
-      const wordElements = [];
-      words.forEach((word, i) => {
-        const span = document.createElement('span');
-        span.className = 'word';
-        span.textContent = word + ' ';
-        span.dataset.index = i;
-        transcriptText.appendChild(span);
-        wordElements.push(span);
-      });
+      // Split transcript into tokens (preserving whitespace) and feed into drip queue
+      const tokens = transcript.split(/(\s+)/);
+      for (const token of tokens) {
+        if (token) {
+          tokenQueue.push(token);
+        }
+      }
+      allQueued = true;
+      drainQueue();
 
-      // Apply the purple text glow animation to each word
-      applyTextGlow(wordElements);
+      // Wait for the drip queue to finish rendering all tokens
+      await dripPromise;
+      setTranscriptReady();
 
       // Step 2 — Extract clinical note
       setExtracting();

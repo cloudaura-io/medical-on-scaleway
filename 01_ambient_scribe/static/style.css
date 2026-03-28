@@ -584,7 +584,7 @@ body::before {
 }
 
 .transcript-text .word.word-glow {
-  animation: textGlow 0.8s ease-out forwards;
+  animation: textGlow 0.3s ease-out forwards;
 }
 
 .transcript-text .word-current {
