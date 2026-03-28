@@ -123,3 +123,27 @@ resource "scaleway_inference_deployment" "embedding" {
 
   tags = ["workshop", "medical-lab", var.student_id]
 }
+
+################################################################################
+# Managed Inference - Voxtral Mini 4B Realtime (speech-to-text streaming)
+# Self-hosted for data sovereignty — audio never leaves dedicated GPU
+################################################################################
+
+resource "scaleway_inference_model" "voxtral_realtime" {
+  name = "voxtral-mini-4b-realtime-2602"
+  url  = "https://huggingface.co/mistralai/Voxtral-Mini-4B-Realtime-2602"
+}
+
+resource "scaleway_inference_deployment" "voxtral_realtime" {
+  name      = "voxtral-realtime-${var.student_id}"
+  node_type = "L4"
+  model_id  = scaleway_inference_model.voxtral_realtime.id
+
+  accept_eula = true
+
+  public_endpoint {
+    is_enabled = true
+  }
+
+  tags = ["workshop", "medical-lab", var.student_id]
+}
