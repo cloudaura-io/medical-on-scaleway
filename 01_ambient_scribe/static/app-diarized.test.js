@@ -64,7 +64,7 @@ const elementIds = [
   'transcriptPlaceholder', 'aiProcessing', 'clinicalBadge', 'clinicalCards',
   'clinicalPlaceholder', 'sparkleContainer', 'waveform', 'waveformBars',
   'statusTranscription', 'statusExtraction', 'statusValidation',
-  'statusValidationText', 'checkmarkIcon',
+  'statusValidationText',
 ];
 
 function setupDOM() {

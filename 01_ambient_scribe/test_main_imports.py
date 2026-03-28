@@ -23,7 +23,7 @@ def _read_source() -> str:
     return MAIN_PY.read_text(encoding="utf-8")
 
 
-def _get_imported_names(source: str) -> list[str]:
+def _get_imported_names(source: str) -> list[tuple[str, int]]:
     """Extract all imported names from the module source using AST parsing.
 
     Returns a list of (name, lineno) tuples for every name brought into scope
