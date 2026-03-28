@@ -16,7 +16,9 @@ import time
 import tempfile
 from pathlib import Path
 
-from fastapi import File, UploadFile, Request
+import json
+
+from fastapi import File, UploadFile, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 # ---------------------------------------------------------------------------
@@ -30,6 +32,7 @@ if _project_root not in sys.path:
 
 from src.logging_config import configure_logging
 from src.transcription import transcribe_audio_diarized
+from src.transcription_realtime import RealtimeTranscriber, diarize_transcript
 from src.extraction import extract_clinical_note
 from src.config import STT_MODEL, validate_config
 from src.app_factory import (
@@ -101,6 +104,72 @@ async def transcribe(file: UploadFile = File(...)):
 
     return {"transcript": text}
 
+
+# -- WebSocket realtime transcription ----------------------------------------
+
+
+@app.websocket("/ws/transcribe")
+async def ws_transcribe(websocket: WebSocket):
+    """Stream live audio via WebSocket for realtime transcription.
+
+    Protocol:
+      - Client sends binary frames (PCM16 audio chunks)
+      - Client sends JSON ``{"type": "stop"}`` to signal end of audio
+      - Server sends JSON ``{"type": "delta", "text": "..."}`` for each word
+      - Server sends JSON ``{"type": "diarized", "text": "..."}`` after diarization
+      - Server sends JSON ``{"type": "done"}`` when complete
+    """
+    await websocket.accept()
+
+    transcriber = RealtimeTranscriber()
+    raw_text_parts: list[str] = []
+
+    try:
+        await transcriber.connect()
+
+        import asyncio
+
+        # Task to receive deltas and forward to browser
+        async def relay_deltas():
+            async for delta in transcriber.receive_deltas():
+                raw_text_parts.append(delta)
+                await websocket.send_json({"type": "delta", "text": delta})
+
+        relay_task = asyncio.create_task(relay_deltas())
+
+        # Receive audio from browser until stop signal
+        while True:
+            message = await websocket.receive()
+
+            if "bytes" in message and message["bytes"]:
+                await transcriber.send_audio(message["bytes"])
+
+            elif "text" in message and message["text"]:
+                data = json.loads(message["text"])
+                if data.get("type") == "stop":
+                    await transcriber.finish()
+                    break
+
+        # Wait for all deltas to be relayed
+        await relay_task
+
+        # Post-process: diarize the raw transcript
+        raw_text = "".join(raw_text_parts)
+        if raw_text.strip():
+            diarized = diarize_transcript(raw_text)
+            await websocket.send_json({"type": "diarized", "text": diarized})
+
+        await websocket.send_json({"type": "done"})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+    finally:
+        await transcriber.disconnect()
 
 
 # -- Extraction -------------------------------------------------------------

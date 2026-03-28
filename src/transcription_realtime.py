@@ -23,7 +23,7 @@ from typing import AsyncIterator
 
 import websockets
 
-from src.config import REALTIME_STT_MODEL, get_realtime_ws_url
+from src.config import CHAT_MODEL, REALTIME_STT_MODEL, get_generative_client, get_realtime_ws_url
 from src.transcription import transcribe_audio_diarized
 
 logger = logging.getLogger(__name__)
@@ -233,3 +233,32 @@ async def transcribe_with_fallback(audio_path: str) -> AsyncIterator[str]:
         logger.info("Falling back to batch transcription for %s", audio_path)
         text = transcribe_audio_diarized(audio_path)
         yield text
+
+
+# ---------------------------------------------------------------------------
+# Post-transcription diarization
+# ---------------------------------------------------------------------------
+
+_DIARIZATION_PROMPT = (
+    "You are given a raw transcript of a doctor-patient conversation. "
+    "Label each speaker's turns with 'Doctor:' or 'Patient:' at the start "
+    "of each new speaker turn. Output only the diarized transcript, nothing else."
+)
+
+
+def diarize_transcript(raw_text: str) -> str:
+    """Send raw transcript to Mistral Small 3.2 for Doctor/Patient labeling."""
+    logger.info("Diarizing transcript, length=%d chars", len(raw_text))
+    client = get_generative_client()
+
+    response = client.chat.completions.create(
+        model=CHAT_MODEL,
+        messages=[
+            {"role": "system", "content": _DIARIZATION_PROMPT},
+            {"role": "user", "content": raw_text},
+        ],
+    )
+
+    result = response.choices[0].message.content
+    logger.info("Diarization complete, length=%d chars", len(result))
+    return result
