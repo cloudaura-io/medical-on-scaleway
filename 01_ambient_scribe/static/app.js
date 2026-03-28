@@ -329,54 +329,89 @@
     setTranscribing();
     startTimer();
 
-    let transcript = '';
     let wordIndex = 0;
-    let firstChunkReceived = false;
+
+    // Token drip queue — feeds tokens into the DOM with a typewriter effect
+    const tokenQueue = [];
+    let dripping = false;
+    let allQueued = false;
+    let resolveDrip = null;
+    const dripPromise = new Promise((r) => { resolveDrip = r; });
+    const TOKEN_INTERVAL_MS = 30;
+
+    function drainQueue() {
+      if (dripping) return;
+      dripping = true;
+
+      function step() {
+        if (tokenQueue.length === 0) {
+          dripping = false;
+          if (allQueued) {
+            resolveDrip();
+          }
+          return;
+        }
+
+        const text = tokenQueue.shift();
+
+        // On first token, hide spinner and show transcript area
+        if (wordIndex === 0) {
+          aiProcessing.classList.remove('is-visible');
+          transcriptText.classList.add('is-visible');
+        }
+
+        const span = document.createElement('span');
+        span.className = 'word';
+        span.textContent = text;
+        span.dataset.index = wordIndex++;
+        transcriptText.appendChild(span);
+
+        span.classList.add('word-glow');
+        span.addEventListener('animationend', () => {
+          span.classList.remove('word-glow');
+        });
+
+        transcriptBody.scrollTop = transcriptBody.scrollHeight;
+
+        setTimeout(step, TOKEN_INTERVAL_MS);
+      }
+
+      step();
+    }
 
     try {
-      // Step 1 — Stream transcription via SSE
+      // Step 1 — Transcribe audio via diarized endpoint
       const formData = new FormData();
       formData.append('file', file);
 
-      await window.SSEClient.postSSE('/api/transcribe-stream', formData, (evt) => {
-        if (evt.event === 'transcript_chunk') {
-          // On first chunk: hide AI spinner, show transcript text
-          if (!firstChunkReceived) {
-            firstChunkReceived = true;
-            aiProcessing.classList.remove('is-visible');
-            transcriptText.classList.add('is-visible');
-          }
-
-          // Append chunk text to accumulator
-          transcript += evt.text;
-
-          // Create word spans for newly arrived words
-          const newWords = evt.text.split(/\s+/).filter(Boolean);
-          for (const word of newWords) {
-            const span = document.createElement('span');
-            span.className = 'word';
-            span.textContent = word + ' ';
-            span.dataset.index = wordIndex++;
-            transcriptText.appendChild(span);
-
-            // Apply glow animation to each new word
-            span.classList.add('word-glow');
-            span.addEventListener('animationend', () => {
-              span.classList.remove('word-glow');
-            });
-          }
-
-          // Auto-scroll transcript container to keep latest content visible
-          transcriptBody.scrollTop = transcriptBody.scrollHeight;
-
-        } else if (evt.event === 'transcript_done') {
-          stopTimer();
-          setTranscriptReady();
-
-        } else if (evt.event === 'error') {
-          throw new Error(evt.detail || 'Transcription error');
-        }
+      const transcribeRes = await fetch('/api/transcribe', {
+        method: 'POST',
+        body: formData,
       });
+
+      if (!transcribeRes.ok) {
+        const err = await transcribeRes.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || `Transcription failed (${transcribeRes.status})`);
+      }
+
+      const transcribeData = await transcribeRes.json();
+      const transcript = transcribeData.transcript;
+
+      stopTimer();
+
+      // Split transcript into tokens (preserving whitespace) and feed into drip queue
+      const tokens = transcript.split(/(\s+)/);
+      for (const token of tokens) {
+        if (token) {
+          tokenQueue.push(token);
+        }
+      }
+      allQueued = true;
+      drainQueue();
+
+      // Wait for the drip queue to finish rendering all tokens
+      await dripPromise;
+      setTranscriptReady();
 
       // Step 2 — Extract clinical note
       setExtracting();
