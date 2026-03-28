@@ -125,24 +125,49 @@ resource "scaleway_inference_deployment" "embedding" {
 }
 
 ################################################################################
-# Managed Inference - Voxtral Mini 4B Realtime (speech-to-text streaming)
-# Self-hosted for data sovereignty — audio never leaves dedicated GPU
+# GPU Instance - Voxtral Realtime STT (self-hosted vLLM)
+# Raw L4 GPU instance running vLLM + Voxtral Mini 4B Realtime
+# Audio never leaves this dedicated European GPU instance
 ################################################################################
 
-resource "scaleway_inference_model" "voxtral_realtime" {
-  name = "voxtral-mini-4b-realtime-2602"
-  url  = "https://huggingface.co/mistralai/Voxtral-Mini-4B-Realtime-2602"
+resource "scaleway_instance_ip" "voxtral_gpu" {}
+
+resource "scaleway_instance_security_group" "voxtral_gpu" {
+  name                    = "voxtral-gpu-${var.student_id}"
+  inbound_default_policy  = "drop"
+  outbound_default_policy = "accept"
+
+  # SSH
+  inbound_rule {
+    action   = "accept"
+    port     = 22
+    ip_range = "${trimspace(data.http.my_ip.response_body)}/32"
+  }
+
+  # vLLM API (OpenAI-compatible)
+  inbound_rule {
+    action   = "accept"
+    port     = 8000
+    ip_range = "${trimspace(data.http.my_ip.response_body)}/32"
+  }
+
+  tags = ["workshop", "medical-lab", var.student_id]
 }
 
-resource "scaleway_inference_deployment" "voxtral_realtime" {
-  name      = "voxtral-realtime-${var.student_id}"
-  node_type = "L4"
-  model_id  = scaleway_inference_model.voxtral_realtime.id
+resource "scaleway_instance_server" "voxtral_gpu" {
+  name  = "voxtral-realtime-${var.student_id}"
+  type  = "L4-1-24G"
+  image = "ubuntu_noble_gpu_os_13"
 
-  accept_eula = true
+  ip_id             = scaleway_instance_ip.voxtral_gpu.id
+  security_group_id = scaleway_instance_security_group.voxtral_gpu.id
 
-  public_endpoint {
-    is_enabled = true
+  root_volume {
+    size_in_gb = 100
+  }
+
+  user_data = {
+    cloud-init = file("${path.module}/cloud-init-vllm.yaml")
   }
 
   tags = ["workshop", "medical-lab", var.student_id]

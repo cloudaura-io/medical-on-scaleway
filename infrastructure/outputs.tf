@@ -67,14 +67,19 @@ output "inference_deployment_id" {
   value       = scaleway_inference_deployment.embedding.id
 }
 
-# --- Voxtral Realtime (STT streaming) ---
+# --- Voxtral Realtime GPU Instance (vLLM) ---
 
 output "voxtral_realtime_endpoint" {
-  description = "Public endpoint for the Voxtral Realtime STT model"
-  value       = "${scaleway_inference_deployment.voxtral_realtime.public_endpoint[0].url}/v1"
+  description = "OpenAI-compatible vLLM endpoint for Voxtral Realtime STT"
+  value       = "http://${scaleway_instance_ip.voxtral_gpu.address}:8000/v1"
 }
 
-output "voxtral_realtime_deployment_id" {
-  description = "ID of the Voxtral Realtime inference deployment"
-  value       = scaleway_inference_deployment.voxtral_realtime.id
+output "voxtral_gpu_ip" {
+  description = "Public IP of the Voxtral Realtime GPU instance"
+  value       = scaleway_instance_ip.voxtral_gpu.address
+}
+
+output "voxtral_gpu_ssh" {
+  description = "SSH command to connect to the GPU instance"
+  value       = "ssh root@${scaleway_instance_ip.voxtral_gpu.address}"
 }
