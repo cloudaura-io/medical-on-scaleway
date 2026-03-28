@@ -1,7 +1,7 @@
 /**
  * Tests for sse-client.js SSE parser utility.
  *
- * Run: node --test 01_ambient_scribe/static/sse-client.test.js
+ * Run: node --test static/shared/sse-client.test.js
  */
 
 import { describe, it, beforeEach } from 'node:test';
