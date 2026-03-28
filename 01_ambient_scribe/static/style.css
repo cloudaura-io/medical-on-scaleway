@@ -325,6 +325,48 @@ body::before {
    Buttons
    --------------------------------------------------------------------------- */
 
+/* Mode toggle */
+.mode-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  border: 1px solid var(--color-border);
+}
+
+.mode-toggle__btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.4rem 0.8rem;
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-toggle__btn.is-active {
+  background: var(--color-purple);
+  color: var(--color-text);
+}
+
+.mode-toggle__btn:hover:not(.is-active) {
+  color: var(--color-text-soft);
+}
+
+/* Mic recording state */
+.btn.is-recording {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.btn.is-recording::before {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
