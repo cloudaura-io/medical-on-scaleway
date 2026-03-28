@@ -250,6 +250,34 @@ describe('Diarized transcription integration', () => {
   });
 });
 
+describe('Dead code and stale reference checks', () => {
+  it('app.js must NOT declare an unused checkmarkIcon variable', () => {
+    // The checkmarkIcon DOM element exists in HTML, but the JS variable is never
+    // used after declaration. The variable assignment line should be removed.
+    const declarationPattern = /const\s+checkmarkIcon\s*=/;
+    assert.ok(
+      !declarationPattern.test(appJsSource),
+      'app.js must not declare an unused checkmarkIcon variable — remove the dead reference',
+    );
+  });
+
+  it('app.js must NOT contain comments referencing SSE streaming or old endpoints', () => {
+    // Stale comments about SSE, /api/transcribe-stream, or removed functions should be cleaned up
+    const stalePatterns = [
+      /\/\/.*SSE/i,
+      /\/\/.*transcribe-stream/i,
+      /\/\/.*transcribe_audio_stream/i,
+      /\/\*[\s\S]*?SSE[\s\S]*?\*\//i,
+    ];
+    for (const pattern of stalePatterns) {
+      assert.ok(
+        !pattern.test(appJsSource),
+        `app.js must not contain stale comments matching ${pattern} — clean up old references`,
+      );
+    }
+  });
+});
+
 describe('Diarized token drip queue', () => {
   beforeEach(() => {
     setupDOM();
@@ -291,5 +319,37 @@ describe('Diarized token drip queue', () => {
     const nonEmpty = tokens.filter((t) => t);
     assert.ok(nonEmpty.length > 0);
     assert.ok(nonEmpty.join('') === transcript);
+  });
+
+  it('newline tokens produce <br> elements instead of <span> elements', () => {
+    const transcript = 'Doctor: Hello.\nPatient: Hi.\n\nEnd.';
+    const tokens = transcript.split(/(\s+)/);
+    const container = createMockElement('DIV', 'transcriptText');
+
+    for (const token of tokens) {
+      if (!token) continue;
+      if (/\n/.test(token)) {
+        const nlCount = (token.match(/\n/g) || []).length;
+        for (let i = 0; i < nlCount; i++) {
+          const br = createMockElement('BR');
+          container.appendChild(br);
+        }
+      } else {
+        const span = createMockElement('SPAN');
+        span.className = 'word';
+        span.textContent = token;
+        container.appendChild(span);
+      }
+    }
+
+    // Count <br> elements — should be 3 (one from \n, two from \n\n)
+    const brCount = container.children.filter((c) => c.tagName === 'BR').length;
+    assert.equal(brCount, 3, 'Should have 3 <br> elements for 3 newlines');
+
+    // No span should contain a newline character
+    const spans = container.children.filter((c) => c.tagName === 'SPAN');
+    for (const span of spans) {
+      assert.ok(!/\n/.test(span.textContent), 'No span should contain a newline');
+    }
   });
 });
