@@ -18,6 +18,7 @@ from pathlib import Path
 
 from fastapi import File, UploadFile, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import iterate_in_threadpool
 
 # ---------------------------------------------------------------------------
 # Project path setup — must happen before any `src.*` import
@@ -60,12 +61,24 @@ validate_config(required_vars=[
 # ---------------------------------------------------------------------------
 
 STATIC_DIR = Path(__file__).parent / "static"
+SHARED_STATIC_DIR = Path(__file__).resolve().parents[1] / "static" / "shared"
 
 app = create_app(
     title="Ambient Scribe — Scaleway Medical AI Lab",
     version="1.0.0",
 )
+
+# Mount the shared static directory BEFORE the app-specific one so
+# the more-specific /static/shared path is matched first.
+from fastapi.staticfiles import StaticFiles
+
+app.mount(
+    "/static/shared",
+    StaticFiles(directory=str(SHARED_STATIC_DIR)),
+    name="shared_static",
+)
 mount_static(app, STATIC_DIR)
+
 create_index_route(app, STATIC_DIR)
 create_health_endpoint(app, model=STT_MODEL)
 
@@ -110,7 +123,7 @@ async def transcribe_stream(file: UploadFile = File(...)):
 
     async def _generate():
         try:
-            for chunk in transcribe_audio_stream(tmp_path):
+            async for chunk in iterate_in_threadpool(transcribe_audio_stream(tmp_path)):
                 yield format_sse_event("transcript_chunk", {"text": chunk})
             yield format_sse_event("transcript_done", {})
         finally:
