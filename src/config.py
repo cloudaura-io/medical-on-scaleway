@@ -97,22 +97,21 @@ def get_generative_client():
     )
 
 
-@lru_cache(maxsize=1)
-def get_realtime_client():
-    """OpenAI client pointing at the self-hosted Voxtral Realtime deployment.
+def get_realtime_ws_url() -> str:
+    """Return the WebSocket URL for the Voxtral Realtime vLLM endpoint.
 
-    Dedicated GPU endpoint for realtime speech-to-text streaming — keeps
-    audio data on isolated European infrastructure.
+    vLLM exposes a WebSocket at ``/v1/realtime`` for streaming audio
+    transcription.  The env var ``SCW_VOXTRAL_REALTIME_ENDPOINT`` stores
+    the HTTP base URL (e.g. ``http://host:8000/v1``); this function
+    converts it to ``ws://host:8000/v1/realtime``.
     """
-    from openai import OpenAI
-
-    logger.info("Initialising Voxtral Realtime client")
     base_url = _require("SCW_VOXTRAL_REALTIME_ENDPOINT")
-    logger.debug("Voxtral Realtime base_url=%s", base_url)
-    return OpenAI(
-        base_url=base_url,
-        api_key=_require("SCW_SECRET_KEY"),
-    )
+    ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://")
+    ws_url = ws_url.rstrip("/")
+    if not ws_url.endswith("/realtime"):
+        ws_url += "/realtime"
+    logger.debug("Voxtral Realtime WebSocket URL=%s", ws_url)
+    return ws_url
 
 
 @lru_cache(maxsize=1)

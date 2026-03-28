@@ -11,6 +11,9 @@ python-multipart
 pgvector>=0.3
 psycopg[binary]>=3.0
 
+# WebSocket (Voxtral Realtime streaming)
+websockets>=13.0
+
 # Utilities
 python-dotenv
 Pillow
