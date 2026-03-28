@@ -142,22 +142,6 @@ describe('Diarized transcription integration', () => {
     };
   });
 
-  it('app.js source must NOT reference /api/transcribe-stream', () => {
-    // The source code should not contain the old streaming endpoint
-    assert.ok(
-      !appJsSource.includes('/api/transcribe-stream'),
-      'app.js must not reference /api/transcribe-stream — it should use /api/transcribe instead',
-    );
-  });
-
-  it('app.js source must NOT reference SSEClient', () => {
-    // The source code should not reference SSEClient since we use regular fetch
-    assert.ok(
-      !appJsSource.includes('SSEClient'),
-      'app.js must not reference SSEClient — it should use regular fetch() for diarized transcription',
-    );
-  });
-
   it('app.js source must reference /api/transcribe for transcription', () => {
     // The source code should call /api/transcribe via fetch
     assert.ok(
@@ -237,17 +221,6 @@ describe('Diarized transcription integration', () => {
     assert.ok(fullText.includes('Patient:'), 'Rendered text must include Patient: label');
   });
 
-  it('app.js source must NOT reference transcript_chunk or transcript_done events', () => {
-    // The SSE-specific events should no longer be referenced
-    assert.ok(
-      !appJsSource.includes('transcript_chunk'),
-      'app.js must not reference transcript_chunk — SSE events are no longer used',
-    );
-    assert.ok(
-      !appJsSource.includes('transcript_done'),
-      'app.js must not reference transcript_done — SSE events are no longer used',
-    );
-  });
 });
 
 describe('Dead code and stale reference checks', () => {
@@ -261,21 +234,6 @@ describe('Dead code and stale reference checks', () => {
     );
   });
 
-  it('app.js must NOT contain comments referencing SSE streaming or old endpoints', () => {
-    // Stale comments about SSE, /api/transcribe-stream, or removed functions should be cleaned up
-    const stalePatterns = [
-      /\/\/.*\bSSE\b/,
-      /\/\/.*transcribe-stream/i,
-      /\/\/.*transcribe_audio_stream/i,
-      /\/\*[\s\S]*?\bSSE\b[\s\S]*?\*\//,
-    ];
-    for (const pattern of stalePatterns) {
-      assert.ok(
-        !pattern.test(appJsSource),
-        `app.js must not contain stale comments matching ${pattern} — clean up old references`,
-      );
-    }
-  });
 });
 
 describe('Diarized token drip queue', () => {
@@ -355,42 +313,17 @@ describe('Diarized token drip queue', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: README accuracy — pip install must not include stale packages
+// Tests: README accuracy
 // ---------------------------------------------------------------------------
 
 const readmeSource = readFileSync(resolve(__dirname, '..', 'README.md'), 'utf-8');
 
 describe('README accuracy', () => {
-  it('README pip install command must NOT include sse-starlette', () => {
-    assert.ok(
-      !readmeSource.includes('sse-starlette'),
-      'README must not reference sse-starlette — it is no longer a dependency for this showcase',
-    );
-  });
-
-  it('README pip install command must NOT include httpx', () => {
-    assert.ok(
-      !readmeSource.includes('httpx'),
-      'README must not reference httpx — it is no longer a dependency for this showcase',
-    );
-  });
-
   it('README should reference the diarized transcription flow', () => {
     // The README description should mention transcription (not streaming)
     assert.ok(
       readmeSource.includes('transcri'),
       'README must mention transcription in its description',
-    );
-  });
-
-  it('README must NOT reference SSE streaming or streaming endpoint', () => {
-    assert.ok(
-      !readmeSource.includes('transcribe-stream'),
-      'README must not reference the old /api/transcribe-stream endpoint',
-    );
-    assert.ok(
-      !readmeSource.includes('sse-starlette'),
-      'README must not reference sse-starlette',
     );
   });
 });

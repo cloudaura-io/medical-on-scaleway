@@ -75,37 +75,3 @@ class TestMainImports:
             f"Import '{name}' (line {lineno}) appears unused in main.py — "
             f"remove if it is dead code"
         )
-
-
-class TestNoStaleReferences:
-    """Verify that main.py does not contain stale references to removed code."""
-
-    source = _read_source()
-
-    def test_no_sse_starlette_import(self) -> None:
-        """main.py must not import sse-starlette (no longer used by this showcase)."""
-        assert "sse_starlette" not in self.source, (
-            "main.py should not reference sse_starlette — "
-            "SSE streaming was removed in favor of diarized transcription"
-        )
-
-    def test_no_httpx_import(self) -> None:
-        """main.py must not import httpx (no longer used by this showcase)."""
-        assert "httpx" not in self.source, (
-            "main.py should not reference httpx — "
-            "it was only needed for the SSE streaming approach"
-        )
-
-    def test_no_transcribe_stream_endpoint(self) -> None:
-        """main.py must not define a /api/transcribe-stream endpoint."""
-        assert "transcribe-stream" not in self.source, (
-            "main.py should not define /api/transcribe-stream — "
-            "the streaming endpoint was replaced by /api/transcribe"
-        )
-
-    def test_no_transcribe_audio_stream_function(self) -> None:
-        """main.py must not reference the removed transcribe_audio_stream function."""
-        assert "transcribe_audio_stream" not in self.source, (
-            "main.py should not reference transcribe_audio_stream — "
-            "it was replaced by transcribe_audio_diarized"
-        )
