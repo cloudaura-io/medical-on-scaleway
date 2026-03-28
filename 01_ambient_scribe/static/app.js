@@ -31,7 +31,6 @@
   const statusExtraction  = $('#statusExtraction');
   const statusValidation  = $('#statusValidation');
   const statusValText     = $('#statusValidationText');
-  const checkmarkIcon     = $('#checkmarkIcon');
 
   // -----------------------------------------------------------------------
   // State
@@ -360,16 +359,24 @@
           transcriptText.classList.add('is-visible');
         }
 
-        const span = document.createElement('span');
-        span.className = 'word';
-        span.textContent = text;
-        span.dataset.index = wordIndex++;
-        transcriptText.appendChild(span);
+        // If the token contains a newline, render <br> elements instead of a span
+        if (/\n/.test(text)) {
+          const nlCount = (text.match(/\n/g) || []).length;
+          for (let i = 0; i < nlCount; i++) {
+            transcriptText.appendChild(document.createElement('br'));
+          }
+        } else {
+          const span = document.createElement('span');
+          span.className = 'word';
+          span.textContent = text;
+          span.dataset.index = wordIndex++;
+          transcriptText.appendChild(span);
 
-        span.classList.add('word-glow');
-        span.addEventListener('animationend', () => {
-          span.classList.remove('word-glow');
-        });
+          span.classList.add('word-glow');
+          span.addEventListener('animationend', () => {
+            span.classList.remove('word-glow');
+          });
+        }
 
         transcriptBody.scrollTop = transcriptBody.scrollHeight;
 

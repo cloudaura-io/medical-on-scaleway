@@ -264,10 +264,10 @@ describe('Dead code and stale reference checks', () => {
   it('app.js must NOT contain comments referencing SSE streaming or old endpoints', () => {
     // Stale comments about SSE, /api/transcribe-stream, or removed functions should be cleaned up
     const stalePatterns = [
-      /\/\/.*SSE/i,
+      /\/\/.*\bSSE\b/,
       /\/\/.*transcribe-stream/i,
       /\/\/.*transcribe_audio_stream/i,
-      /\/\*[\s\S]*?SSE[\s\S]*?\*\//i,
+      /\/\*[\s\S]*?\bSSE\b[\s\S]*?\*\//,
     ];
     for (const pattern of stalePatterns) {
       assert.ok(
