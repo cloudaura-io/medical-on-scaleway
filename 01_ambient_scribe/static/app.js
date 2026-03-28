@@ -574,13 +574,18 @@
       scriptNode.connect(audioContext.destination);
 
     } catch (err) {
+      stopTimer();
       setError(err.message || 'Microphone access denied');
+      isRecording = false;
+      micBtnLabel.textContent = 'Start Recording';
+      btnMicRecord.classList.remove('is-recording');
       cleanupMic();
     }
   }
 
   function stopMicRecording() {
     isRecording = false;
+    stopTimer();
     micBtnLabel.textContent = 'Start Recording';
     btnMicRecord.classList.remove('is-recording');
 
