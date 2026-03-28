@@ -12,59 +12,75 @@ Run:
 
 from __future__ import annotations
 
-import sys
 import time
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import File, UploadFile, Request
+from fastapi.responses import JSONResponse
 
 # ---------------------------------------------------------------------------
-# Path fixup so `from src.…` resolves to the repo root
+# Project path setup — must happen before any `src.*` import
 # ---------------------------------------------------------------------------
-sys.path.insert(0, str(Path(__file__).parent.parent))
+import sys
 
-from src.transcription import transcribe_audio  # noqa: E402
-from src.extraction import extract_clinical_note  # noqa: E402
-from src.config import STT_MODEL  # noqa: E402
+_project_root = str(Path(__file__).resolve().parents[1])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+from src.logging_config import configure_logging
+from src.transcription import transcribe_audio_diarized
+from src.extraction import extract_clinical_note
+from src.config import STT_MODEL, validate_config
+from src.app_factory import (
+    create_app,
+    mount_static,
+    create_index_route,
+    create_health_endpoint,
+)
+
+# ---------------------------------------------------------------------------
+# Logging — must be configured before anything else logs
+# ---------------------------------------------------------------------------
+configure_logging()
+
+# ---------------------------------------------------------------------------
+# Validate configuration upfront
+# ---------------------------------------------------------------------------
+validate_config(required_vars=[
+    "SCW_GENERATIVE_API_URL",
+    "SCW_SECRET_KEY",
+])
 
 # ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
 
-app = FastAPI(
+STATIC_DIR = Path(__file__).parent / "static"
+SHARED_STATIC_DIR = Path(__file__).resolve().parents[1] / "static" / "shared"
+
+app = create_app(
     title="Ambient Scribe — Scaleway Medical AI Lab",
     version="1.0.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Mount the shared static directory BEFORE the app-specific one so
+# the more-specific /static/shared path is matched first.
+from fastapi.staticfiles import StaticFiles
 
-STATIC_DIR = Path(__file__).parent / "static"
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount(
+    "/static/shared",
+    StaticFiles(directory=str(SHARED_STATIC_DIR)),
+    name="shared_static",
+)
+mount_static(app, STATIC_DIR)
+
+create_index_route(app, STATIC_DIR)
+create_health_endpoint(app, model=STT_MODEL)
 
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-
-
-@app.get("/", response_class=HTMLResponse)
-async def index():
-    """Serve the single-page frontend."""
-    html_path = STATIC_DIR / "index.html"
-    return HTMLResponse(content=html_path.read_text(), status_code=200)
-
-
-@app.get("/api/health")
-async def health():
-    return {"status": "ok", "model": STT_MODEL}
 
 
 # -- Transcription ----------------------------------------------------------
@@ -72,18 +88,19 @@ async def health():
 
 @app.post("/api/transcribe")
 async def transcribe(file: UploadFile = File(...)):
-    """Transcribe uploaded audio via Voxtral on Scaleway Generative APIs."""
+    """Transcribe uploaded audio with speaker diarization via Voxtral chat completions."""
     suffix = Path(file.filename).suffix if file.filename else ".wav"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
 
     try:
-        text = transcribe_audio(tmp_path)
+        text = transcribe_audio_diarized(tmp_path)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
     return {"transcript": text}
+
 
 
 # -- Extraction -------------------------------------------------------------
@@ -95,7 +112,10 @@ async def extract(request: Request):
     body = await request.json()
     transcript = body.get("transcript", "")
     if not transcript:
-        return JSONResponse({"error": "transcript field is required"}, status_code=400)
+        return JSONResponse(
+            {"error": "transcript field is required"},
+            status_code=400,
+        )
 
     start = time.perf_counter()
     result = extract_clinical_note(transcript)

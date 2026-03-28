@@ -9,10 +9,13 @@ Safety guardrails for medical AI responses.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import datetime, timezone
 
 from src.config import get_db_connection
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Disclaimer
@@ -28,6 +31,7 @@ _DISCLAIMER = (
 
 def add_disclaimer(response: str) -> str:
     """Prepend a standard medical disclaimer to *response*."""
+    logger.debug("Adding medical disclaimer to response")
     return _DISCLAIMER + response
 
 
@@ -47,7 +51,16 @@ def enforce_citations(response: str) -> bool:
     bool
         ``True`` if at least one citation is found; ``False`` otherwise.
     """
-    return bool(_CITATION_RE.search(response))
+    has_citations = bool(_CITATION_RE.search(response))
+    if not has_citations:
+        logger.warning(
+            "Citation enforcement failed: no [Source: ...] found "
+            "in response (length=%d)",
+            len(response),
+        )
+    else:
+        logger.debug("Citation check passed")
+    return has_citations
 
 
 # ---------------------------------------------------------------------------
@@ -67,6 +80,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 
 def _ensure_audit_table() -> None:
+    logger.debug("Ensuring audit_log table exists")
     conn = get_db_connection()
     conn.execute(_AUDIT_TABLE_SQL)
 
@@ -90,6 +104,11 @@ def audit_log(
     sources:
         List of source identifiers cited in the response.
     """
+    logger.info(
+        "audit_log called, action=%s, query_length=%d",
+        action,
+        len(query),
+    )
     _ensure_audit_table()
     conn = get_db_connection()
     conn.execute(
@@ -99,3 +118,4 @@ def audit_log(
         """,
         (action, query, response, json.dumps(sources or [])),
     )
+    logger.debug("Audit log entry written for action=%s", action)

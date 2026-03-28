@@ -1,10 +1,10 @@
 # Showcase 1 — Doctor's Ambient Scribe
 
-Real-time transcription of doctor-patient encounters with structured clinical note extraction, powered by **Voxtral** (speech-to-text) and **Mistral** (structured extraction) on Scaleway Generative APIs.
+Diarized transcription of doctor-patient encounters with structured clinical note extraction, powered by **Voxtral** (speech-to-text with speaker diarization) and **Mistral** (structured extraction) on Scaleway Generative APIs.
 
 ## What it does
 
-1. **Audio transcription** — upload an audio file and Voxtral transcribes the encounter.
+1. **Audio transcription with diarization** — upload an audio file and Voxtral transcribes the encounter, identifying speakers (Doctor / Patient).
 2. **Clinical note extraction** — the transcript is sent to Mistral, which returns structured JSON (patient info, symptoms, medications, vitals, assessment, plan).
 
 ## Quick start
@@ -14,7 +14,7 @@ Real-time transcription of doctor-patient encounters with structured clinical no
 cd 01_ambient_scribe
 
 # Install dependencies (if not already)
-pip install fastapi uvicorn sse-starlette python-dotenv openai httpx
+pip install fastapi uvicorn python-dotenv openai
 
 # Run the server
 uvicorn main:app --reload --port 8000
@@ -37,5 +37,5 @@ Both variables are **required**. The showcase calls Scaleway Generative APIs for
 |---|---|---|
 | `GET` | `/` | Serves the single-page frontend |
 | `GET` | `/api/health` | Health check, returns model info |
-| `POST` | `/api/transcribe` | Upload audio for transcription via Voxtral |
+| `POST` | `/api/transcribe` | Upload audio for diarized transcription via Voxtral |
 | `POST` | `/api/extract` | Extract clinical note from transcript text via Mistral |
