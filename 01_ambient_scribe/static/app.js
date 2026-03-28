@@ -13,6 +13,9 @@
   const $ = (sel) => document.querySelector(sel);
   const btnUploadLabel    = $('#btnUploadLabel');
   const audioFileInput    = $('#audioFileInput');
+  const btnMicRecord      = $('#btnMicRecord');
+  const micBtnLabel       = $('#micBtnLabel');
+  const modeToggle        = $('#modeToggle');
   const btnReset          = $('#btnReset');
   const recordingInd      = $('#recordingIndicator');
   const recordingLabel    = $('#recordingLabel');
@@ -40,6 +43,12 @@
   let timerInterval = null;
   let isProcessing  = false;
   let sparkleInterval = null;
+  let currentMode   = 'upload'; // 'upload' | 'mic'
+  let micStream     = null;
+  let audioContext   = null;
+  let scriptNode    = null;
+  let ws            = null;
+  let isRecording   = false;
 
   // -----------------------------------------------------------------------
   // Waveform bars setup
@@ -445,6 +454,167 @@
   }
 
   // -----------------------------------------------------------------------
+  // Mode toggle
+  // -----------------------------------------------------------------------
+
+  function setMode(mode) {
+    currentMode = mode;
+    modeToggle.querySelectorAll('.mode-toggle__btn').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.mode === mode);
+    });
+    btnUploadLabel.style.display = mode === 'upload' ? '' : 'none';
+    audioFileInput.style.display = 'none';
+    btnMicRecord.style.display = mode === 'mic' ? '' : 'none';
+  }
+
+  // -----------------------------------------------------------------------
+  // WebSocket live mic transcription
+  // -----------------------------------------------------------------------
+
+  async function startMicRecording() {
+    if (isProcessing) return;
+
+    resetUI();
+    setTranscribing();
+    startTimer();
+    isRecording = true;
+    micBtnLabel.textContent = 'Stop Recording';
+    btnMicRecord.classList.add('is-recording');
+
+    let wordIndex = 0;
+
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true },
+      });
+
+      audioContext = new AudioContext({ sampleRate: 16000 });
+      const source = audioContext.createMediaStreamSource(micStream);
+
+      // Use ScriptProcessorNode for PCM access (AudioWorklet is more complex)
+      scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+
+      // Open WebSocket
+      const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${wsProtocol}//${location.host}/ws/transcribe`);
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'delta') {
+          if (wordIndex === 0) {
+            aiProcessing.classList.remove('is-visible');
+            transcriptText.classList.add('is-visible');
+          }
+          const span = document.createElement('span');
+          span.className = 'word word-glow';
+          span.textContent = msg.text;
+          span.dataset.index = wordIndex++;
+          transcriptText.appendChild(span);
+          span.addEventListener('animationend', () => span.classList.remove('word-glow'));
+          transcriptBody.scrollTop = transcriptBody.scrollHeight;
+        } else if (msg.type === 'diarized') {
+          // Replace raw transcript with diarized version
+          transcriptText.innerHTML = '';
+          wordIndex = 0;
+          const tokens = msg.text.split(/(\s+)/);
+          for (const token of tokens) {
+            if (token && /\n/.test(token)) {
+              transcriptText.appendChild(document.createElement('br'));
+            } else if (token) {
+              const span = document.createElement('span');
+              span.className = 'word';
+              span.textContent = token;
+              span.dataset.index = wordIndex++;
+              transcriptText.appendChild(span);
+            }
+          }
+          setTranscriptReady();
+          transcriptBadge.textContent = 'diarized';
+
+          // Trigger extraction
+          runExtraction(msg.text);
+        } else if (msg.type === 'done') {
+          stopTimer();
+          if (!transcriptText.textContent.trim()) {
+            setComplete();
+          }
+        } else if (msg.type === 'error') {
+          setError(msg.message || 'Transcription error');
+        }
+      };
+
+      ws.onclose = () => {
+        cleanupMic();
+      };
+
+      ws.onerror = () => {
+        setError('WebSocket connection failed');
+        cleanupMic();
+      };
+
+      // Wait for WebSocket to open before streaming
+      await new Promise((resolve, reject) => {
+        ws.onopen = resolve;
+        ws.onerror = reject;
+      });
+
+      // Stream audio via ScriptProcessorNode
+      scriptNode.onaudioprocess = (e) => {
+        if (!isRecording || !ws || ws.readyState !== WebSocket.OPEN) return;
+        const float32 = e.inputBuffer.getChannelData(0);
+        const pcm16 = new Int16Array(float32.length);
+        for (let i = 0; i < float32.length; i++) {
+          pcm16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
+        }
+        ws.send(pcm16.buffer);
+      };
+
+      source.connect(scriptNode);
+      scriptNode.connect(audioContext.destination);
+
+    } catch (err) {
+      setError(err.message || 'Microphone access denied');
+      cleanupMic();
+    }
+  }
+
+  function stopMicRecording() {
+    isRecording = false;
+    micBtnLabel.textContent = 'Start Recording';
+    btnMicRecord.classList.remove('is-recording');
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'stop' }));
+    }
+
+    cleanupMic();
+  }
+
+  function cleanupMic() {
+    if (scriptNode) { scriptNode.disconnect(); scriptNode = null; }
+    if (audioContext) { audioContext.close(); audioContext = null; }
+    if (micStream) { micStream.getTracks().forEach((t) => t.stop()); micStream = null; }
+  }
+
+  async function runExtraction(transcript) {
+    setExtracting();
+    try {
+      const res = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+      });
+      if (!res.ok) throw new Error('Extraction failed');
+      const data = await res.json();
+      renderClinicalNote(data.clinical_note);
+      setComplete(data.processing_time_s);
+    } catch (err) {
+      setError(err.message || 'Extraction failed');
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // Reset
   // -----------------------------------------------------------------------
 
@@ -482,11 +652,32 @@
 
   function init() {
     initWaveform();
+
+    // Mode toggle
+    modeToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('.mode-toggle__btn');
+      if (btn && !isProcessing) setMode(btn.dataset.mode);
+    });
+
+    // File upload
     audioFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) handleFileUpload(file);
     });
-    btnReset.addEventListener('click', resetUI);
+
+    // Mic record toggle
+    btnMicRecord.addEventListener('click', () => {
+      if (isRecording) {
+        stopMicRecording();
+      } else {
+        startMicRecording();
+      }
+    });
+
+    btnReset.addEventListener('click', () => {
+      if (isRecording) stopMicRecording();
+      resetUI();
+    });
   }
 
   if (document.readyState === 'loading') {
