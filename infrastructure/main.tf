@@ -157,7 +157,7 @@ resource "scaleway_instance_security_group" "voxtral_gpu" {
 resource "scaleway_instance_server" "voxtral_gpu" {
   name  = "voxtral-realtime-${var.student_id}"
   type  = "L4-1-24G"
-  image = "ubuntu_noble_gpu_os_13"
+  image = "ubuntu_noble_gpu_os_13_nvidia"
 
   ip_id             = scaleway_instance_ip.voxtral_gpu.id
   security_group_id = scaleway_instance_security_group.voxtral_gpu.id
