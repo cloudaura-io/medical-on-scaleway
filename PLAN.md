@@ -13,7 +13,7 @@ Workshop for healthcare professionals (directors, tech leads, innovation officer
 
 Pre-built by us, run by presenters during the workshop. Audience watches, asks questions. Each demo is a standalone web app (Python FastAPI backend + single-page HTML/CSS/JS frontend). No React — pure HTML with beautiful, hand-crafted CSS and vanilla JS. Backend serves API endpoints that the frontend calls.
 
-### Showcase 1: Doctor's Ambient Scribe (Speech → Structured Record)
+### Showcase 1: Doctor Assistant (Speech → Structured Record)
 
 **Story**: A doctor records a 5-minute patient consultation. AI transcribes it, extracts structured medical data, and produces a draft clinical note — all in real-time.
 
@@ -101,7 +101,7 @@ Pre-built by us, run by presenters during the workshop. Audience watches, asks q
 
 Tech stack for all 3 showcases: **Python FastAPI** backend + **single-page HTML/CSS/JS** frontend. No React, no npm, no build step. One `index.html` per showcase, served by FastAPI. Backend exposes REST/SSE endpoints. Frontend uses `fetch()` and `EventSource` for streaming.
 
-### Showcase 1 UI: Doctor's Ambient Scribe
+### Showcase 1 UI: Doctor Assistant
 
 **Aesthetic direction**: Clinical-editorial. Think high-end medical journal meets modern dashboard. Dark theme (deep navy `#0a1628` background) with warm amber accents (`#e8a838`) for highlights. Clean, confident, authoritative.
 
@@ -110,7 +110,7 @@ Tech stack for all 3 showcases: **Python FastAPI** backend + **single-page HTML/
 **Layout** (single page, no scrolling):
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  AMBIENT SCRIBE                              [● Recording]      │
+│  DOCTOR ASSISTANT                            [● Recording]      │
 │  Scaleway × Mistral                          [▶ Play Sample]    │
 ├────────────────────────────┬────────────────────────────────────┤
 │                            │                                    │
@@ -550,7 +550,7 @@ scaleway-medical-lab/
 │   └── clinical_notes/                         # For Lab
 │       └── sample_note.txt
 │
-├── 01_ambient_scribe/          Showcase 1: Ambient Scribe
+├── 01_ambient_scribe/          Showcase 1: Doctor Assistant
 │   ├── 01_ambient_scribe/
 │   │   ├── main.py                             # FastAPI backend (SSE streaming)
 │   │   ├── static/
@@ -648,7 +648,7 @@ ipywidgets                 # Interactive notebook widgets
 | Time | Type | What |
 |------|------|------|
 | 0:00 | Presentation | AI in Healthcare — landscape, challenges, opportunity |
-| 0:30 | **Showcase 1** | Doctor's Ambient Scribe (Voxtral + structured extraction) |
+| 0:30 | **Showcase 1** | Doctor Assistant (Voxtral + structured extraction) |
 | 0:50 | **Showcase 2** | Medical Document Intelligence (Pixtral OCR + RAG) |
 | 1:10 | **Showcase 3** | Cross-domain Research Agent (multi-RAG + verification) |
 | 1:30 | Presentation | Scaleway Cloud + AI Governance / EU AI Act |

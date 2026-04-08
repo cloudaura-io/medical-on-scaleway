@@ -1,5 +1,5 @@
 /* =========================================================================
-   Ambient Scribe — Frontend Controller
+   Doctor Assistant — Frontend Controller
    Scaleway Medical AI Lab — Premium Scaleway Brand Edition
    ========================================================================= */
 

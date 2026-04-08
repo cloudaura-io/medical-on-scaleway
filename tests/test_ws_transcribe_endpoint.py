@@ -28,7 +28,7 @@ if _app_dir not in sys.path:
 
 @pytest.fixture()
 def client():
-    """Return a TestClient for the ambient scribe app."""
+    """Return a TestClient for the doctor assistant app."""
     env_patch = patch.dict(
         os.environ,
         {

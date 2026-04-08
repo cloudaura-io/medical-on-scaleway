@@ -1,6 +1,6 @@
 """
-Showcase 1 — Doctor's Ambient Scribe
-=====================================
+Showcase 1 — Doctor Assistant
+==============================
 
 FastAPI backend that:
   1. Accepts audio uploads and transcribes via Voxtral (Scaleway Generative APIs)
@@ -63,7 +63,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 SHARED_STATIC_DIR = Path(__file__).resolve().parents[1] / "static" / "shared"
 
 app = create_app(
-    title="Ambient Scribe — Scaleway Medical AI Lab",
+    title="Doctor Assistant — Scaleway Medical AI Lab",
     version="1.0.0",
 )
 
