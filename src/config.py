@@ -184,4 +184,4 @@ CHAT_MODEL = "mistral-small-3.2-24b-instruct-2506"  # also handles vision/OCR
 STT_MODEL = "voxtral-small-24b-2507"
 VISION_MODEL = CHAT_MODEL  # pixtral-12b-2409 is deprecated; Mistral Small 3.2 has native vision
 EMBEDDING_MODEL = "bge-multilingual-gemma2"
-REALTIME_STT_MODEL = "voxtral-mini-4b-realtime-2602"
+REALTIME_STT_MODEL = "Voxtral-Mini-4B-Realtime-2602"

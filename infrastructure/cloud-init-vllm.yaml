@@ -23,19 +23,23 @@ write_files:
             - hf-cache:/root/.cache/huggingface
           environment:
             - NVIDIA_VISIBLE_DEVICES=all
+          entrypoint: ["/bin/bash", "-c"]
           command:
-            - --model=mistralai/Voxtral-Mini-4B-Realtime-2602
-            - --host=0.0.0.0
-            - --port=8000
-            - --tokenizer-mode=mistral
-            - --config-format=mistral
-            - --load-format=mistral
-            - --trust-remote-code
-            - --compilation-config={"cudagraph_mode":"PIECEWISE"}
-            - --max-model-len=45000
-            - --max-num-batched-tokens=8192
-            - --max-num-seqs=16
-            - --gpu-memory-utilization=0.90
+            - |
+              pip install soundfile soxr &&
+              python3 -m vllm.entrypoints.openai.api_server \
+                --model mistralai/Voxtral-Mini-4B-Realtime-2602 \
+                --host 0.0.0.0 \
+                --port 8000 \
+                --tokenizer-mode mistral \
+                --config-format mistral \
+                --load-format mistral \
+                --trust-remote-code \
+                --compilation-config='{"cudagraph_mode":"PIECEWISE"}' \
+                --max-model-len 4096 \
+                --max-num-batched-tokens 8192 \
+                --max-num-seqs 16 \
+                --gpu-memory-utilization 0.90
           restart: unless-stopped
           deploy:
             resources:
