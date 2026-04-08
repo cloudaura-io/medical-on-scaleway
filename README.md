@@ -8,7 +8,7 @@ Three self-contained showcase applications, each demonstrating a different Scale
 
 | # | Showcase | What it does | Scaleway services | Mistral models |
 |---|----------|-------------|-------------------|----------------|
-| 1 | **Ambient Scribe** | Transcribes doctor-patient conversations (file upload or realtime WebSocket streaming) and extracts structured clinical data | Generative APIs, GPU Instance (L4 + vLLM) | Voxtral (STT), Voxtral Mini 4B Realtime (streaming STT), Mistral Small 3.2 (extraction) |
+| 1 | **Doctor Assistant** | Transcribes doctor-patient conversations (file upload or realtime WebSocket streaming) and extracts structured clinical data | Generative APIs, GPU Instance (L4 + vLLM) | Voxtral (STT), Voxtral Mini 4B Realtime (streaming STT), Mistral Small 3.2 (extraction) |
 | 2 | **Document Intelligence** | OCR on scanned medical documents, indexes them, answers questions with citations | Generative APIs, Managed Inference, PostgreSQL + pgvector, Object Storage | Mistral Small 3.2 (vision/OCR), BGE (embeddings) |
 | 3 | **Research Agent** | Searches across pharmacology, cardiology, and clinical trial databases to answer complex medical questions | Generative APIs, Managed Inference, PostgreSQL + pgvector | Mistral Small 3.2 (agent + tool calling), BGE (embeddings) |
 
@@ -40,7 +40,7 @@ A Scaleway account with API keys is required to run the showcases. [Register for
 │   ├── sse_utils.py             Server-sent events formatting utilities
 │   └── logging_config.py        Structured logging configuration
 │
-├── 01_ambient_scribe/           Showcase 1: FastAPI + vanilla HTML/CSS/JS
+├── 01_ambient_scribe/           Showcase 1 — Doctor Assistant: FastAPI + vanilla HTML/CSS/JS
 ├── 02_document_intelligence/    Showcase 2
 ├── 03_research_agent/           Showcase 3
 │

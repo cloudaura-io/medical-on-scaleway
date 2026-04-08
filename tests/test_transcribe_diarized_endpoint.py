@@ -17,19 +17,19 @@ _project_root = str(Path(__file__).resolve().parents[1])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-# Ensure the ambient scribe directory is on sys.path
+# Ensure the doctor assistant directory is on sys.path
 _app_dir = str(Path(__file__).resolve().parents[1] / "01_ambient_scribe")
 if _app_dir not in sys.path:
     sys.path.insert(0, _app_dir)
 
 
 # ---------------------------------------------------------------------------
-# Fixture: ambient scribe app
+# Fixture: doctor assistant app
 # ---------------------------------------------------------------------------
 
 @pytest.fixture()
 def client():
-    """Return a TestClient for the ambient scribe app."""
+    """Return a TestClient for the doctor assistant app."""
     env_patch = patch.dict(
         os.environ,
         {

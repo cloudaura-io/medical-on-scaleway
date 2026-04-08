@@ -1,4 +1,4 @@
-# Showcase 1 — Doctor's Ambient Scribe
+# Showcase 1 — Doctor Assistant
 
 Diarized transcription of doctor-patient encounters with structured clinical note extraction, powered by **Voxtral** (speech-to-text with speaker diarization) and **Mistral** (structured extraction) on Scaleway Generative APIs.
 
