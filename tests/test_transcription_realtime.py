@@ -86,7 +86,7 @@ class TestRealtimeTranscriber:
         async def run():
             with (
                 patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
-                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+                patch("src.transcription_realtime.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
             ):
                 t = RealtimeTranscriber()
                 await t.connect()
@@ -114,7 +114,7 @@ class TestRealtimeTranscriber:
         async def run():
             with (
                 patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
-                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+                patch("src.transcription_realtime.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
             ):
                 t = RealtimeTranscriber()
                 await t.connect()
@@ -144,7 +144,7 @@ class TestRealtimeTranscriber:
         async def run():
             with (
                 patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
-                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+                patch("src.transcription_realtime.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
             ):
                 t = RealtimeTranscriber()
                 await t.connect()
@@ -180,7 +180,7 @@ class TestRealtimeTranscriber:
         async def run():
             with (
                 patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
-                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+                patch("src.transcription_realtime.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
             ):
                 t = RealtimeTranscriber()
                 await t.connect()
@@ -208,7 +208,7 @@ class TestRealtimeTranscriber:
         async def run():
             with (
                 patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
-                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+                patch("src.transcription_realtime.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
             ):
                 t = RealtimeTranscriber()
                 await t.connect()
