@@ -67,11 +67,10 @@ class TestMainImports:
     @pytest.mark.parametrize(
         "name,lineno",
         imported,
-        ids=[f"{n} (line {l})" for n, l in _get_imported_names(_read_source())],
+        ids=[f"{n} (line {lineno})" for n, lineno in _get_imported_names(_read_source())],
     )
     def test_import_is_used(self, name: str, lineno: int) -> None:
         """Import '{name}' on line {lineno} must be referenced elsewhere in main.py."""
         assert _name_used_outside_import(name, self.source), (
-            f"Import '{name}' (line {lineno}) appears unused in main.py — "
-            f"remove if it is dead code"
+            f"Import '{name}' (line {lineno}) appears unused in main.py — remove if it is dead code"
         )

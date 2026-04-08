@@ -2,34 +2,30 @@
 
 from __future__ import annotations
 
-import os
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def static_dir(tmp_path: Path) -> Path:
     """Create a temp directory with a minimal index.html."""
     index_html = tmp_path / "index.html"
-    index_html.write_text(
-        "<html><body><h1>Test App</h1></body></html>"
-    )
+    index_html.write_text("<html><body><h1>Test App</h1></body></html>")
     return tmp_path
 
 
 # ---------------------------------------------------------------------------
 # Tests: setup_project_path()
 # ---------------------------------------------------------------------------
+
 
 class TestSetupProjectPath:
     """Test the setup_project_path() helper."""
@@ -94,6 +90,7 @@ class TestSetupProjectPath:
 # Tests: create_app()
 # ---------------------------------------------------------------------------
 
+
 class TestCreateApp:
     """Test the create_app() factory function."""
 
@@ -119,10 +116,7 @@ class TestCreateApp:
         app = create_app(title="Test", version="0.1.0")
 
         # Verify CORS middleware is present by checking middleware stack
-        middleware_classes = [
-            m.cls.__name__
-            for m in app.user_middleware
-        ]
+        middleware_classes = [m.cls.__name__ for m in app.user_middleware]
         assert "CORSMiddleware" in middleware_classes
 
 
@@ -130,12 +124,11 @@ class TestCreateApp:
 # Tests: mount_static()
 # ---------------------------------------------------------------------------
 
+
 class TestMountStatic:
     """Test the mount_static() helper."""
 
-    def test_mounts_static_directory(
-        self, static_dir: Path
-    ) -> None:
+    def test_mounts_static_directory(self, static_dir: Path) -> None:
         """mount_static() must mount files so they are accessible."""
         from src.app_factory import create_app, mount_static
 
@@ -152,6 +145,7 @@ class TestMountStatic:
 # Tests: create_index_route()
 # ---------------------------------------------------------------------------
 
+
 class TestCreateIndexRoute:
     """Test the create_index_route() helper."""
 
@@ -159,8 +153,8 @@ class TestCreateIndexRoute:
         """GET / must return the content of index.html."""
         from src.app_factory import (
             create_app,
-            mount_static,
             create_index_route,
+            mount_static,
         )
 
         app = create_app(title="Test", version="0.1.0")
@@ -176,6 +170,7 @@ class TestCreateIndexRoute:
 # ---------------------------------------------------------------------------
 # Tests: create_health_endpoint()
 # ---------------------------------------------------------------------------
+
 
 class TestCreateHealthEndpoint:
     """Test the create_health_endpoint() helper."""

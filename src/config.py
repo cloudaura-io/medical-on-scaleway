@@ -22,12 +22,13 @@ logger = logging.getLogger(__name__)
 # Environment helpers
 # ---------------------------------------------------------------------------
 
+
 def _require(var: str) -> str:
     """Return an env var or raise with a clear message."""
     value = os.getenv(var)
     if not value:
         logger.error("Missing required environment variable: %s", var)
-        raise EnvironmentError(f"Missing required environment variable: {var}")
+        raise OSError(f"Missing required environment variable: {var}")
     logger.debug("Loaded env var %s", var)
     return value
 
@@ -68,17 +69,15 @@ def validate_config(
 
     if missing:
         names = ", ".join(missing)
-        msg = (
-            f"Missing required environment variable(s): {names}. "
-            "Set them in your .env file or shell environment."
-        )
+        msg = f"Missing required environment variable(s): {names}. Set them in your .env file or shell environment."
         logger.error(msg)
-        raise EnvironmentError(msg)
+        raise OSError(msg)
 
 
 # ---------------------------------------------------------------------------
 # OpenAI clients (lazily created so import alone never fails)
 # ---------------------------------------------------------------------------
+
 
 @lru_cache(maxsize=1)
 def get_generative_client():
@@ -136,6 +135,7 @@ def get_inference_client():
 # PostgreSQL
 # ---------------------------------------------------------------------------
 
+
 @lru_cache(maxsize=1)
 def get_db_connection():
     """Return a psycopg connection (auto-commit) to the pgvector database."""
@@ -151,6 +151,7 @@ def get_db_connection():
 # ---------------------------------------------------------------------------
 # S3 / Object Storage
 # ---------------------------------------------------------------------------
+
 
 @lru_cache(maxsize=1)
 def get_s3_client():

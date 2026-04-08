@@ -13,7 +13,6 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -62,7 +61,7 @@ def main():
 
     # Lazy import so --help works without a live database
     from src.config import get_db_connection
-    from src.rag import chunk_document, create_embedding, _ensure_table
+    from src.rag import _ensure_table, chunk_document, create_embedding
 
     if not KB_DIR.is_dir():
         print(f"Error: Knowledge base directory not found: {KB_DIR}")

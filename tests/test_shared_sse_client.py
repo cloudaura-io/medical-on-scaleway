@@ -33,6 +33,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # Fixture: doctor assistant app
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def client():
     """Return a TestClient for the doctor assistant app."""
@@ -46,6 +47,7 @@ def client():
     env_patch.start()
 
     from src.config import get_generative_client
+
     get_generative_client.cache_clear()
 
     if "main" in sys.modules:
@@ -70,9 +72,7 @@ class TestSharedSSEClientFile:
     def test_shared_sse_client_file_exists(self) -> None:
         """static/shared/sse-client.js must exist at the repo root."""
         shared_path = PROJECT_ROOT / "static" / "shared" / "sse-client.js"
-        assert shared_path.is_file(), (
-            f"Expected shared SSE client at {shared_path} but file does not exist"
-        )
+        assert shared_path.is_file(), f"Expected shared SSE client at {shared_path} but file does not exist"
 
     def test_shared_sse_client_is_valid_js(self) -> None:
         """The shared sse-client.js must contain recognisable JS content."""
@@ -87,9 +87,7 @@ class TestSharedSSEClientFile:
     def test_old_sse_client_removed_from_ambient_scribe(self) -> None:
         """01_ambient_scribe/static/sse-client.js must no longer exist."""
         old_path = PROJECT_ROOT / "01_ambient_scribe" / "static" / "sse-client.js"
-        assert not old_path.exists(), (
-            f"Old SSE client still exists at {old_path}; it should be removed"
-        )
+        assert not old_path.exists(), f"Old SSE client still exists at {old_path}; it should be removed"
 
 
 class TestSharedSSEClientServed:

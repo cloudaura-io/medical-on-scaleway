@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Callable
+from collections.abc import Callable
 
-from src.config import get_generative_client, CHAT_MODEL
+from src.config import CHAT_MODEL, get_generative_client
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,7 @@ Respond with EXACTLY one JSON object:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_claims(response: str) -> list[str]:
     """Use Mistral to split a response into individual factual claims."""
@@ -140,6 +141,7 @@ def _judge(claim: str, evidence: str) -> dict:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def verify_claims(
     response: str,
     search_fn: Callable[[str], list[dict]],
@@ -194,9 +196,7 @@ def verify_claims(
             continue
 
         # Combine top-k evidence for judging.
-        combined_evidence = "\n\n".join(
-            f"[{h.get('source', 'unknown')}]: {h['content']}" for h in hits[:3]
-        )
+        combined_evidence = "\n\n".join(f"[{h.get('source', 'unknown')}]: {h['content']}" for h in hits[:3])
         top_source = hits[0].get("source")
 
         # Step 3: judge claim against evidence.

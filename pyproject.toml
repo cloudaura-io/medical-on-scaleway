@@ -1,0 +1,34 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # line too long — formatter handles this
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Showcase apps must manipulate sys.path before importing src modules
+"01_ambient_scribe/main.py" = ["E402"]
+"02_document_intelligence/main.py" = ["E402"]
+"03_research_agent/main.py" = ["E402"]
+# Test files and scripts that need sys.path setup before imports
+"tests/*.py" = ["E402"]
+"scripts/*.py" = ["E402"]
+# FastAPI File(...) in defaults is the standard pattern
+"*/main.py" = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

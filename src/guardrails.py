@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime, timezone
 
 from src.config import get_db_connection
 
@@ -54,8 +53,7 @@ def enforce_citations(response: str) -> bool:
     has_citations = bool(_CITATION_RE.search(response))
     if not has_citations:
         logger.warning(
-            "Citation enforcement failed: no [Source: ...] found "
-            "in response (length=%d)",
+            "Citation enforcement failed: no [Source: ...] found in response (length=%d)",
             len(response),
         )
     else:

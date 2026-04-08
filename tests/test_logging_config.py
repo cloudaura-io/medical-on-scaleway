@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
-from unittest.mock import patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Tests: configure_logging()
 # ---------------------------------------------------------------------------
+
 
 class TestConfigureLogging:
     """Test the configure_logging() function."""
@@ -53,9 +51,7 @@ class TestConfigureLogging:
             if "%(asctime)s" in fmt and "%(name)s" in fmt:
                 found = True
                 break
-        assert found, (
-            "No handler found with %(asctime)s and %(name)s in format"
-        )
+        assert found, "No handler found with %(asctime)s and %(name)s in format"
 
     def test_adds_handler(self) -> None:
         """configure_logging() must add a StreamHandler to the root logger."""
@@ -81,6 +77,7 @@ class TestConfigureLogging:
 # Tests: timed_operation decorator (sync)
 # ---------------------------------------------------------------------------
 
+
 class TestTimedOperationSync:
     """Test the timed_operation decorator with synchronous functions."""
 
@@ -94,9 +91,7 @@ class TestTimedOperationSync:
 
         assert add(2, 3) == 5
 
-    def test_sync_function_logs_elapsed_time(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_sync_function_logs_elapsed_time(self, caplog: pytest.LogCaptureFixture) -> None:
         """timed_operation must log the elapsed time for sync functions."""
         from src.logging_config import timed_operation
 
@@ -108,10 +103,7 @@ class TestTimedOperationSync:
             slow_add(1, 2)
 
         # Check that a log record mentions elapsed time
-        matching = [
-            r for r in caplog.records
-            if "slow_add" in r.message and "s" in r.message
-        ]
+        matching = [r for r in caplog.records if "slow_add" in r.message and "s" in r.message]
         assert len(matching) > 0
 
     def test_sync_function_preserves_exceptions(self) -> None:
@@ -130,6 +122,7 @@ class TestTimedOperationSync:
 # Tests: timed_operation decorator (async)
 # ---------------------------------------------------------------------------
 
+
 class TestTimedOperationAsync:
     """Test the timed_operation decorator with async functions."""
 
@@ -141,14 +134,10 @@ class TestTimedOperationAsync:
         async def async_add(a: int, b: int) -> int:
             return a + b
 
-        result = asyncio.get_event_loop().run_until_complete(
-            async_add(2, 3)
-        )
+        result = asyncio.run(async_add(2, 3))
         assert result == 5
 
-    def test_async_function_logs_elapsed_time(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_async_function_logs_elapsed_time(self, caplog: pytest.LogCaptureFixture) -> None:
         """timed_operation must log the elapsed time for async functions."""
         from src.logging_config import timed_operation
 
@@ -157,12 +146,9 @@ class TestTimedOperationAsync:
             return "done"
 
         with caplog.at_level(logging.DEBUG):
-            asyncio.get_event_loop().run_until_complete(async_work())
+            asyncio.run(async_work())
 
-        matching = [
-            r for r in caplog.records
-            if "async_work" in r.message and "s" in r.message
-        ]
+        matching = [r for r in caplog.records if "async_work" in r.message and "s" in r.message]
         assert len(matching) > 0
 
     def test_async_function_preserves_exceptions(self) -> None:
@@ -174,6 +160,4 @@ class TestTimedOperationAsync:
             raise RuntimeError("async boom")
 
         with pytest.raises(RuntimeError, match="async boom"):
-            asyncio.get_event_loop().run_until_complete(
-                async_failing()
-            )
+            asyncio.run(async_failing())

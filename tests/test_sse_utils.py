@@ -5,12 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Tests: format_sse_event()
 # ---------------------------------------------------------------------------
+
 
 class TestFormatSseEvent:
     """Test the format_sse_event() function."""
@@ -24,7 +22,7 @@ class TestFormatSseEvent:
         assert result.endswith("\n\n")
 
         # Parse the JSON payload between 'data: ' and '\n\n'
-        payload_str = result[len("data: "):-2]
+        payload_str = result[len("data: ") : -2]
         payload = json.loads(payload_str)
         assert payload["event"] == "progress"
         assert payload["page"] == 1
@@ -35,7 +33,7 @@ class TestFormatSseEvent:
         from src.sse_utils import format_sse_event
 
         result = format_sse_event("progress", {"step": 3, "total": 10})
-        payload = json.loads(result[len("data: "):-2])
+        payload = json.loads(result[len("data: ") : -2])
         assert payload["event"] == "progress"
         assert payload["step"] == 3
         assert payload["total"] == 10
@@ -45,7 +43,7 @@ class TestFormatSseEvent:
         from src.sse_utils import format_sse_event
 
         result = format_sse_event("error", {"detail": "Something went wrong"})
-        payload = json.loads(result[len("data: "):-2])
+        payload = json.loads(result[len("data: ") : -2])
         assert payload["event"] == "error"
         assert payload["detail"] == "Something went wrong"
 
@@ -57,7 +55,7 @@ class TestFormatSseEvent:
             "complete",
             {"filename": "report.pdf", "pages": 5, "chunks": 12},
         )
-        payload = json.loads(result[len("data: "):-2])
+        payload = json.loads(result[len("data: ") : -2])
         assert payload["event"] == "complete"
         assert payload["filename"] == "report.pdf"
         assert payload["pages"] == 5
@@ -68,7 +66,7 @@ class TestFormatSseEvent:
         from src.sse_utils import format_sse_event
 
         result = format_sse_event("ping", {})
-        payload = json.loads(result[len("data: "):-2])
+        payload = json.loads(result[len("data: ") : -2])
         assert payload["event"] == "ping"
 
     def test_returns_string(self) -> None:
@@ -83,6 +81,7 @@ class TestFormatSseEvent:
 # Tests: safe_streaming_wrapper()
 # ---------------------------------------------------------------------------
 
+
 class TestSafeStreamingWrapper:
     """Test the safe_streaming_wrapper() async generator wrapper."""
 
@@ -91,8 +90,8 @@ class TestSafeStreamingWrapper:
         from src.sse_utils import safe_streaming_wrapper
 
         async def good_generator():
-            yield "data: {\"event\": \"step1\"}\n\n"
-            yield "data: {\"event\": \"step2\"}\n\n"
+            yield 'data: {"event": "step1"}\n\n'
+            yield 'data: {"event": "step2"}\n\n'
 
         async def collect():
             results = []
@@ -100,7 +99,7 @@ class TestSafeStreamingWrapper:
                 results.append(event)
             return results
 
-        results = asyncio.get_event_loop().run_until_complete(collect())
+        results = asyncio.run(collect())
         assert len(results) == 2
         assert "step1" in results[0]
         assert "step2" in results[1]
@@ -110,7 +109,7 @@ class TestSafeStreamingWrapper:
         from src.sse_utils import safe_streaming_wrapper
 
         async def failing_generator():
-            yield "data: {\"event\": \"step1\"}\n\n"
+            yield 'data: {"event": "step1"}\n\n'
             raise RuntimeError("OCR processing failed")
 
         async def collect():
@@ -119,7 +118,7 @@ class TestSafeStreamingWrapper:
                 results.append(event)
             return results
 
-        results = asyncio.get_event_loop().run_until_complete(collect())
+        results = asyncio.run(collect())
 
         # Should have the first event + the error event
         assert len(results) == 2
@@ -128,7 +127,7 @@ class TestSafeStreamingWrapper:
         assert "step1" in results[0]
 
         # Second event is the error
-        error_payload = json.loads(results[1][len("data: "):-2])
+        error_payload = json.loads(results[1][len("data: ") : -2])
         assert error_payload["event"] == "error"
         assert "OCR processing failed" in error_payload["detail"]
 
@@ -146,9 +145,9 @@ class TestSafeStreamingWrapper:
                 results.append(event)
             return results
 
-        results = asyncio.get_event_loop().run_until_complete(collect())
+        results = asyncio.run(collect())
 
         assert len(results) == 1
-        error_payload = json.loads(results[0][len("data: "):-2])
+        error_payload = json.loads(results[0][len("data: ") : -2])
         assert error_payload["event"] == "error"
         assert "Bad input" in error_payload["detail"]

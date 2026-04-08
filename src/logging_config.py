@@ -11,21 +11,19 @@ Provides:
 
 from __future__ import annotations
 
-import asyncio
 import functools
 import inspect
 import logging
 import sys
 import time
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 # Sentinel to track whether configure_logging() has already run.
 _CONFIGURED = False
 
 # Standard log format: timestamp, level, module name, message.
-_LOG_FORMAT = (
-    "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-)
+_LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -34,6 +32,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 # ------------------------------------------------------------------
 # Logging setup
 # ------------------------------------------------------------------
+
 
 def configure_logging(
     level: int = logging.INFO,
@@ -82,6 +81,7 @@ def configure_logging(
 # ------------------------------------------------------------------
 # Timed operation decorator
 # ------------------------------------------------------------------
+
 
 def timed_operation(fn: F) -> F:
     """Decorator that logs the wall-clock time of a function call.

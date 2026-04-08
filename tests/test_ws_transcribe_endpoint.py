@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import importlib
-import json
 import os
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,6 +24,7 @@ if _app_dir not in sys.path:
 # Fixture
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def client():
     """Return a TestClient for the doctor assistant app."""
@@ -40,6 +39,7 @@ def client():
     env_patch.start()
 
     from src.config import get_generative_client
+
     get_generative_client.cache_clear()
 
     if "main" in sys.modules:
@@ -57,12 +57,14 @@ def client():
 # Tests: WebSocket /ws/transcribe
 # ---------------------------------------------------------------------------
 
+
 class TestWsTranscribeEndpoint:
     """Test the WebSocket /ws/transcribe route exists and handles messages."""
 
     def test_websocket_route_exists(self, client: TestClient) -> None:
         """The /ws/transcribe WebSocket route must be registered."""
         import main as ambient_main
+
         routes = [r.path for r in ambient_main.app.routes]
         assert "/ws/transcribe" in routes
 
@@ -80,22 +82,24 @@ class TestWsTranscribeEndpoint:
         mock_transcriber.disconnect = AsyncMock()
         mock_transcriber.receive_deltas = mock_deltas
 
-        with patch("main.RealtimeTranscriber", return_value=mock_transcriber):
-            with client.websocket_connect("/ws/transcribe") as ws:
-                # Send some audio
-                ws.send_bytes(b"\x00\x01" * 2048)
-                # Send stop signal
-                ws.send_json({"type": "stop"})
-                # Collect responses
-                messages = []
-                while True:
-                    try:
-                        msg = ws.receive_json(mode="text")
-                        messages.append(msg)
-                        if msg.get("type") in ("done", "error"):
-                            break
-                    except Exception:
+        with (
+            patch("main.RealtimeTranscriber", return_value=mock_transcriber),
+            client.websocket_connect("/ws/transcribe") as ws,
+        ):
+            # Send some audio
+            ws.send_bytes(b"\x00\x01" * 2048)
+            # Send stop signal
+            ws.send_json({"type": "stop"})
+            # Collect responses
+            messages = []
+            while True:
+                try:
+                    msg = ws.receive_json(mode="text")
+                    messages.append(msg)
+                    if msg.get("type") in ("done", "error"):
                         break
+                except Exception:
+                    break
 
         delta_msgs = [m for m in messages if m.get("type") == "delta"]
         assert len(delta_msgs) >= 1
@@ -113,19 +117,21 @@ class TestWsTranscribeEndpoint:
         mock_transcriber.disconnect = AsyncMock()
         mock_transcriber.receive_deltas = mock_deltas
 
-        with patch("main.RealtimeTranscriber", return_value=mock_transcriber):
-            with patch("main.diarize_transcript", return_value="Doctor: text"):
-                with client.websocket_connect("/ws/transcribe") as ws:
-                    ws.send_json({"type": "stop"})
-                    messages = []
-                    while True:
-                        try:
-                            msg = ws.receive_json(mode="text")
-                            messages.append(msg)
-                            if msg.get("type") in ("done", "error"):
-                                break
-                        except Exception:
-                            break
+        with (
+            patch("main.RealtimeTranscriber", return_value=mock_transcriber),
+            patch("main.diarize_transcript", return_value="Doctor: text"),
+            client.websocket_connect("/ws/transcribe") as ws,
+        ):
+            ws.send_json({"type": "stop"})
+            messages = []
+            while True:
+                try:
+                    msg = ws.receive_json(mode="text")
+                    messages.append(msg)
+                    if msg.get("type") in ("done", "error"):
+                        break
+                except Exception:
+                    break
 
         types = [m.get("type") for m in messages]
         assert "done" in types
@@ -135,6 +141,7 @@ class TestWsTranscribeEndpoint:
 # Tests: Post-transcription diarization
 # ---------------------------------------------------------------------------
 
+
 class TestPostTranscriptionDiarization:
     """Test that raw transcript is sent to Mistral Small for diarization."""
 
@@ -143,9 +150,7 @@ class TestPostTranscriptionDiarization:
         from src.transcription_realtime import diarize_transcript
 
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content="Doctor: Hello\nPatient: Hi"))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="Doctor: Hello\nPatient: Hi"))]
 
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
@@ -159,13 +164,11 @@ class TestPostTranscriptionDiarization:
 
     def test_diarize_uses_chat_model(self) -> None:
         """diarize_transcript() must use the CHAT_MODEL for diarization."""
-        from src.transcription_realtime import diarize_transcript
         from src.config import CHAT_MODEL
+        from src.transcription_realtime import diarize_transcript
 
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content="Doctor: Hi\nPatient: Hello"))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="Doctor: Hi\nPatient: Hello"))]
 
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = mock_response
