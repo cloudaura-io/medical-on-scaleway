@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Required environment variables (must stay in sync with src/config.py)
 # ---------------------------------------------------------------------------
@@ -28,6 +27,7 @@ ALL_REQUIRED_VARS = [
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _full_env() -> dict[str, str]:
     """Return an env dict with all required vars set to dummy values."""
     return {var: f"test-value-{var}" for var in ALL_REQUIRED_VARS}
@@ -36,6 +36,7 @@ def _full_env() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Tests: validate_config()
 # ---------------------------------------------------------------------------
+
 
 class TestValidateConfig:
     """Test the validate_config() function."""
@@ -54,9 +55,8 @@ class TestValidateConfig:
 
         # Clear all required vars
         env = {k: v for k, v in os.environ.items() if k not in ALL_REQUIRED_VARS}
-        with patch.dict(os.environ, env, clear=True):
-            with pytest.raises(EnvironmentError):
-                validate_config()
+        with patch.dict(os.environ, env, clear=True), pytest.raises(EnvironmentError):
+            validate_config()
 
     def test_error_message_lists_all_missing_var_names(self) -> None:
         """The EnvironmentError message must include every missing var name."""
@@ -77,9 +77,7 @@ class TestValidateConfig:
 
             error_msg = str(exc_info.value)
             for var in missing:
-                assert var in error_msg, (
-                    f"Expected '{var}' in error message, got: {error_msg}"
-                )
+                assert var in error_msg, f"Expected '{var}' in error message, got: {error_msg}"
 
     def test_error_message_does_not_list_present_vars(self) -> None:
         """The error message must not mention vars that ARE set."""
@@ -116,6 +114,8 @@ class TestValidateConfig:
 
         subset = ["SCW_GENERATIVE_API_URL", "SCW_SECRET_KEY"]
 
-        with patch.dict(os.environ, {"SCW_GENERATIVE_API_URL": "ok"}, clear=True):
-            with pytest.raises(EnvironmentError, match="SCW_SECRET_KEY"):
-                validate_config(required_vars=subset)
+        with (
+            patch.dict(os.environ, {"SCW_GENERATIVE_API_URL": "ok"}, clear=True),
+            pytest.raises(EnvironmentError, match="SCW_SECRET_KEY"),
+        ):
+            validate_config(required_vars=subset)

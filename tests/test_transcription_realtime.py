@@ -5,15 +5,12 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-
+from unittest.mock import AsyncMock, patch
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _run(coro):
     """Run an async coroutine in a new event loop (Python 3.14 compat)."""
@@ -27,14 +24,17 @@ def _make_pcm_chunk(n_bytes: int = 4096) -> bytes:
 
 def _mock_connect(mock_ws):
     """Create a mock for websockets.connect that works as both awaitable and async ctx manager."""
+
     async def connect(*args, **kwargs):
         return mock_ws
+
     return connect
 
 
 # ---------------------------------------------------------------------------
 # Tests: get_realtime_ws_url
 # ---------------------------------------------------------------------------
+
 
 class TestGetRealtimeWsUrl:
     """Test the WebSocket URL builder in config."""
@@ -65,6 +65,7 @@ class TestGetRealtimeWsUrl:
 # Tests: RealtimeTranscriber
 # ---------------------------------------------------------------------------
 
+
 class TestRealtimeTranscriber:
     """Test the async realtime transcription class."""
 
@@ -73,19 +74,25 @@ class TestRealtimeTranscriber:
         from src.transcription_realtime import RealtimeTranscriber
 
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(return_value=json.dumps({
-            "type": "session.created",
-            "id": "sess-123",
-        }))
+        mock_ws.recv = AsyncMock(
+            return_value=json.dumps(
+                {
+                    "type": "session.created",
+                    "id": "sess-123",
+                }
+            )
+        )
 
         async def run():
-            with patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)):
-                with patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"):
-                    t = RealtimeTranscriber()
-                    await t.connect()
-                    calls = [json.loads(c.args[0]) for c in mock_ws.send.call_args_list]
-                    types = [c["type"] for c in calls]
-                    assert "session.update" in types
+            with (
+                patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
+                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+            ):
+                t = RealtimeTranscriber()
+                await t.connect()
+                calls = [json.loads(c.args[0]) for c in mock_ws.send.call_args_list]
+                types = [c["type"] for c in calls]
+                assert "session.update" in types
 
         _run(run())
 
@@ -94,22 +101,29 @@ class TestRealtimeTranscriber:
         from src.transcription_realtime import RealtimeTranscriber
 
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(return_value=json.dumps({
-            "type": "session.created", "id": "s1",
-        }))
+        mock_ws.recv = AsyncMock(
+            return_value=json.dumps(
+                {
+                    "type": "session.created",
+                    "id": "s1",
+                }
+            )
+        )
         chunk = _make_pcm_chunk(256)
 
         async def run():
-            with patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)):
-                with patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"):
-                    t = RealtimeTranscriber()
-                    await t.connect()
-                    mock_ws.send.reset_mock()
-                    await t.send_audio(chunk)
-                    msg = json.loads(mock_ws.send.call_args.args[0])
-                    assert msg["type"] == "input_audio_buffer.append"
-                    decoded = base64.b64decode(msg["audio"])
-                    assert decoded == chunk
+            with (
+                patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
+                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+            ):
+                t = RealtimeTranscriber()
+                await t.connect()
+                mock_ws.send.reset_mock()
+                await t.send_audio(chunk)
+                msg = json.loads(mock_ws.send.call_args.args[0])
+                assert msg["type"] == "input_audio_buffer.append"
+                decoded = base64.b64decode(msg["audio"])
+                assert decoded == chunk
 
         _run(run())
 
@@ -118,20 +132,27 @@ class TestRealtimeTranscriber:
         from src.transcription_realtime import RealtimeTranscriber
 
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(return_value=json.dumps({
-            "type": "session.created", "id": "s1",
-        }))
+        mock_ws.recv = AsyncMock(
+            return_value=json.dumps(
+                {
+                    "type": "session.created",
+                    "id": "s1",
+                }
+            )
+        )
 
         async def run():
-            with patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)):
-                with patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"):
-                    t = RealtimeTranscriber()
-                    await t.connect()
-                    mock_ws.send.reset_mock()
-                    await t.finish()
-                    msg = json.loads(mock_ws.send.call_args.args[0])
-                    assert msg["type"] == "input_audio_buffer.commit"
-                    assert msg.get("final") is True
+            with (
+                patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
+                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+            ):
+                t = RealtimeTranscriber()
+                await t.connect()
+                mock_ws.send.reset_mock()
+                await t.finish()
+                msg = json.loads(mock_ws.send.call_args.args[0])
+                assert msg["type"] == "input_audio_buffer.commit"
+                assert msg.get("final") is True
 
         _run(run())
 
@@ -157,14 +178,16 @@ class TestRealtimeTranscriber:
         mock_ws.recv = mock_recv
 
         async def run():
-            with patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)):
-                with patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"):
-                    t = RealtimeTranscriber()
-                    await t.connect()
-                    deltas = []
-                    async for text in t.receive_deltas():
-                        deltas.append(text)
-                    assert deltas == ["Hello ", "world"]
+            with (
+                patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
+                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+            ):
+                t = RealtimeTranscriber()
+                await t.connect()
+                deltas = []
+                async for text in t.receive_deltas():
+                    deltas.append(text)
+                assert deltas == ["Hello ", "world"]
 
         _run(run())
 
@@ -173,16 +196,23 @@ class TestRealtimeTranscriber:
         from src.transcription_realtime import RealtimeTranscriber
 
         mock_ws = AsyncMock()
-        mock_ws.recv = AsyncMock(return_value=json.dumps({
-            "type": "session.created", "id": "s1",
-        }))
+        mock_ws.recv = AsyncMock(
+            return_value=json.dumps(
+                {
+                    "type": "session.created",
+                    "id": "s1",
+                }
+            )
+        )
 
         async def run():
-            with patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)):
-                with patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"):
-                    t = RealtimeTranscriber()
-                    await t.connect()
-                    await t.disconnect()
-                    mock_ws.close.assert_called_once()
+            with (
+                patch("src.transcription_realtime.websockets.connect", _mock_connect(mock_ws)),
+                patch("src.config.get_realtime_ws_url", return_value="ws://fake:8000/v1/realtime"),
+            ):
+                t = RealtimeTranscriber()
+                await t.connect()
+                await t.disconnect()
+                mock_ws.close.assert_called_once()
 
         _run(run())

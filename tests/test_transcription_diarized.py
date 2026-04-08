@@ -9,8 +9,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 # Ensure project root is on sys.path so `src.*` imports work
 _project_root = str(Path(__file__).resolve().parents[1])
 if _project_root not in sys.path:
@@ -42,6 +40,7 @@ class TestTranscribeAudioDiarizedCallsChat:
 
         with patch.dict(os.environ, env, clear=False):
             from src.config import get_generative_client
+
             get_generative_client.cache_clear()
 
             with patch("src.transcription.get_generative_client", return_value=mock_client):
@@ -53,7 +52,7 @@ class TestTranscribeAudioDiarizedCallsChat:
                     tmp_path = tmp.name
 
                 try:
-                    result = transcribe_audio_diarized(tmp_path)
+                    transcribe_audio_diarized(tmp_path)
                 finally:
                     Path(tmp_path).unlink(missing_ok=True)
 
@@ -103,6 +102,7 @@ class TestTranscribeAudioDiarizedPrompt:
 
         with patch.dict(os.environ, env, clear=False):
             from src.config import get_generative_client
+
             get_generative_client.cache_clear()
 
             with patch("src.transcription.get_generative_client", return_value=mock_client):
@@ -149,6 +149,7 @@ class TestTranscribeAudioDiarizedNoSystemMessage:
 
         with patch.dict(os.environ, env, clear=False):
             from src.config import get_generative_client
+
             get_generative_client.cache_clear()
 
             with patch("src.transcription.get_generative_client", return_value=mock_client):
@@ -191,6 +192,7 @@ class TestTranscribeAudioDiarizedReturnsText:
 
         with patch.dict(os.environ, env, clear=False):
             from src.config import get_generative_client
+
             get_generative_client.cache_clear()
 
             with patch("src.transcription.get_generative_client", return_value=mock_client):

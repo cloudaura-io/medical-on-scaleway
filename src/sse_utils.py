@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 # SSE formatting
 # ------------------------------------------------------------------
+
 
 def format_sse_event(event: str, data: dict[str, Any]) -> str:
     """Format a dict as an SSE ``data:`` line.
@@ -42,6 +44,7 @@ def format_sse_event(event: str, data: dict[str, Any]) -> str:
 # ------------------------------------------------------------------
 # Streaming error wrapper
 # ------------------------------------------------------------------
+
 
 async def safe_streaming_wrapper(
     generator: AsyncIterator[str],

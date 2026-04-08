@@ -12,14 +12,13 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from typing import Optional
 
 from src.config import (
-    get_inference_client,
-    get_generative_client,
-    get_db_connection,
-    EMBEDDING_MODEL,
     CHAT_MODEL,
+    EMBEDDING_MODEL,
+    get_db_connection,
+    get_generative_client,
+    get_inference_client,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,6 +26,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Embedding
 # ---------------------------------------------------------------------------
+
 
 def create_embedding(text: str) -> list[float]:
     """Create a dense vector for *text* using the BGE model on Managed Inference.
@@ -50,6 +50,7 @@ def create_embedding(text: str) -> list[float]:
 # Chunking
 # ---------------------------------------------------------------------------
 
+
 def chunk_document(
     text: str,
     chunk_size: int = 500,
@@ -61,7 +62,12 @@ def chunk_document(
     the nearest newline or sentence boundary inside the window to avoid
     cutting mid-word.
     """
-    logger.info("chunk_document called, text_length=%d, chunk_size=%d, overlap=%d", len(text) if text else 0, chunk_size, overlap)
+    logger.info(
+        "chunk_document called, text_length=%d, chunk_size=%d, overlap=%d",
+        len(text) if text else 0,
+        chunk_size,
+        overlap,
+    )
     if not text:
         logger.warning("chunk_document received empty text, returning empty list")
         return []
@@ -119,6 +125,7 @@ def _ensure_table() -> None:
 # Indexing
 # ---------------------------------------------------------------------------
 
+
 def index_document(
     source: str,
     content: str,
@@ -168,6 +175,7 @@ def index_document(
 # ---------------------------------------------------------------------------
 # Search
 # ---------------------------------------------------------------------------
+
 
 def search(
     query: str,
@@ -279,14 +287,10 @@ def generate_cited_response(
     logger.info("generate_cited_response called, query=%r, context_chunks=%d", query[:80], len(context_chunks))
     context_parts: list[str] = []
     for i, chunk in enumerate(context_chunks, 1):
-        context_parts.append(
-            f"[{i}] Source: {chunk['source']}\n{chunk['content']}"
-        )
+        context_parts.append(f"[{i}] Source: {chunk['source']}\n{chunk['content']}")
     context_block = "\n\n---\n\n".join(context_parts)
 
-    user_message = (
-        f"Context:\n{context_block}\n\n---\n\nQuestion: {query}"
-    )
+    user_message = f"Context:\n{context_block}\n\n---\n\nQuestion: {query}"
 
     client = get_generative_client()
     logger.debug("Sending cited-response request to model=%s, context_length=%d chars", CHAT_MODEL, len(context_block))

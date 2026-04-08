@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import struct
-from unittest.mock import AsyncMock, patch, MagicMock
-
-import pytest
+from unittest.mock import AsyncMock, patch
 
 
 def _run(coro):
@@ -46,8 +43,10 @@ class TestDecodeAudioToPcm:
 
     def test_decodes_wav_to_pcm16_bytes(self) -> None:
         """decode_audio_to_pcm() must return raw PCM16 bytes from a WAV file."""
+        import os
+        import tempfile
+
         from src.transcription_realtime import decode_audio_to_pcm
-        import tempfile, os
 
         wav = _make_wav_bytes(8000)
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -96,7 +95,7 @@ class TestStreamFileRealtime:
 
     def test_sends_audio_in_chunks(self) -> None:
         """stream_file_realtime() must split audio into chunks and send each."""
-        from src.transcription_realtime import stream_file_realtime, CHUNK_SIZE
+        from src.transcription_realtime import CHUNK_SIZE, stream_file_realtime
 
         mock_transcriber = AsyncMock()
         mock_transcriber.connect = AsyncMock()

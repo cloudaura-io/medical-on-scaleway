@@ -14,6 +14,11 @@ from __future__ import annotations
 
 import asyncio
 import os
+
+# ---------------------------------------------------------------------------
+# Project path setup — must happen before any `src.*` import
+# ---------------------------------------------------------------------------
+import sys
 import tempfile
 import uuid
 from pathlib import Path
@@ -22,23 +27,18 @@ from fastapi import File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-# ---------------------------------------------------------------------------
-# Project path setup — must happen before any `src.*` import
-# ---------------------------------------------------------------------------
-import sys
-
 _project_root = str(Path(__file__).resolve().parents[1])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from src.logging_config import configure_logging
-from src.config import validate_config
 from src.app_factory import (
     create_app,
-    mount_static,
-    create_index_route,
     create_health_endpoint,
+    create_index_route,
+    mount_static,
 )
+from src.config import validate_config
+from src.logging_config import configure_logging
 from src.sse_utils import format_sse_event, safe_streaming_wrapper
 
 # ---------------------------------------------------------------------------
@@ -49,12 +49,14 @@ configure_logging()
 # ---------------------------------------------------------------------------
 # Validate configuration upfront
 # ---------------------------------------------------------------------------
-validate_config(required_vars=[
-    "SCW_GENERATIVE_API_URL",
-    "SCW_SECRET_KEY",
-    "SCW_INFERENCE_ENDPOINT",
-    "DATABASE_URL",
-])
+validate_config(
+    required_vars=[
+        "SCW_GENERATIVE_API_URL",
+        "SCW_SECRET_KEY",
+        "SCW_INFERENCE_ENDPOINT",
+        "DATABASE_URL",
+    ]
+)
 
 # ---------------------------------------------------------------------------
 # App
@@ -112,9 +114,7 @@ class QueryResponse(BaseModel):
 async def upload_document(file: UploadFile = File(...)):
     """Accept a PDF upload and store it locally."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(
-            status_code=400, detail="Only PDF files are accepted."
-        )
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
     doc_id = str(uuid.uuid4())
     save_path = _UPLOAD_DIR / f"{doc_id}.pdf"
@@ -144,19 +144,20 @@ async def process_document(doc_id: str):
         from src.ocr import process_pdf
         from src.rag import index_document
 
-        yield format_sse_event(
-            "processing_started", {"filename": doc["filename"]}
-        )
+        yield format_sse_event("processing_started", {"filename": doc["filename"]})
 
         pages = process_pdf(doc["path"])
         doc["pages"] = pages
 
-        for i, page in enumerate(pages):
-            yield format_sse_event("page_processed", {
-                "page": page["page"],
-                "total": len(pages),
-                "text": page["text"],
-            })
+        for _i, page in enumerate(pages):
+            yield format_sse_event(
+                "page_processed",
+                {
+                    "page": page["page"],
+                    "total": len(pages),
+                    "text": page["text"],
+                },
+            )
             await asyncio.sleep(0.1)  # Small pause for UI animation
 
         # Index the full text
@@ -169,15 +170,21 @@ async def process_document(doc_id: str):
         )
         doc["chunks_indexed"] = num_chunks
 
-        yield format_sse_event("indexing_complete", {
-            "chunks": num_chunks,
-        })
+        yield format_sse_event(
+            "indexing_complete",
+            {
+                "chunks": num_chunks,
+            },
+        )
 
-        yield format_sse_event("complete", {
-            "filename": doc["filename"],
-            "pages": len(pages),
-            "chunks": num_chunks,
-        })
+        yield format_sse_event(
+            "complete",
+            {
+                "filename": doc["filename"],
+                "pages": len(pages),
+                "chunks": num_chunks,
+            },
+        )
 
     return StreamingResponse(
         safe_streaming_wrapper(event_stream()),
@@ -189,15 +196,12 @@ async def process_document(doc_id: str):
 async def query_documents(req: QueryRequest):
     """Answer a question using RAG over indexed documents."""
     try:
-        from src.rag import search, generate_cited_response
+        from src.rag import generate_cited_response, search
 
         results = search(req.query, top_k=req.top_k)
         if not results:
             return QueryResponse(
-                answer=(
-                    "No relevant documents found. "
-                    "Please upload and process documents first."
-                ),
+                answer=("No relevant documents found. Please upload and process documents first."),
                 sources=[],
             )
 
@@ -214,7 +218,7 @@ async def query_documents(req: QueryRequest):
             ],
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/api/documents")
@@ -223,12 +227,14 @@ async def list_documents():
     docs = []
 
     for doc_id, doc in _documents.items():
-        docs.append({
-            "doc_id": doc_id,
-            "filename": doc["filename"],
-            "pages": len(doc["pages"]),
-            "chunks_indexed": doc.get("chunks_indexed", 0),
-        })
+        docs.append(
+            {
+                "doc_id": doc_id,
+                "filename": doc["filename"],
+                "pages": len(doc["pages"]),
+                "chunks_indexed": doc.get("chunks_indexed", 0),
+            }
+        )
 
     return {"documents": docs}
 

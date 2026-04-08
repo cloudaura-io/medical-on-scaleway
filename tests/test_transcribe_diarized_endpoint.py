@@ -27,6 +27,7 @@ if _app_dir not in sys.path:
 # Fixture: doctor assistant app
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def client():
     """Return a TestClient for the doctor assistant app."""
@@ -40,6 +41,7 @@ def client():
     env_patch.start()
 
     from src.config import get_generative_client
+
     get_generative_client.cache_clear()
 
     if "main" in sys.modules:
@@ -84,8 +86,7 @@ class TestTranscribeEndpointSpeakerLabels:
     def test_transcript_contains_speaker_labels(self, client: TestClient) -> None:
         """The returned transcript must contain Doctor: and Patient: labels."""
         diarized_text = (
-            "Doctor: Good morning. What brings you in today?\n"
-            "Patient: I've been having chest pain for two days."
+            "Doctor: Good morning. What brings you in today?\nPatient: I've been having chest pain for two days."
         )
 
         with patch("main.transcribe_audio_diarized", return_value=diarized_text):

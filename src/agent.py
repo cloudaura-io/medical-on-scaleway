@@ -10,9 +10,10 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any, Callable, Generator
+from collections.abc import Callable, Generator
+from typing import Any
 
-from src.config import get_generative_client, CHAT_MODEL
+from src.config import CHAT_MODEL, get_generative_client
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +51,7 @@ TOOL_CHECK_DRUG_INTERACTIONS = {
     "function": {
         "name": "check_drug_interactions",
         "description": (
-            "Check for known interactions between two medications. "
-            "Returns severity level and clinical recommendation."
+            "Check for known interactions between two medications. Returns severity level and clinical recommendation."
         ),
         "parameters": {
             "type": "object",
@@ -74,10 +74,7 @@ TOOL_EXTRACT_PATIENT_DATA = {
     "type": "function",
     "function": {
         "name": "extract_patient_data",
-        "description": (
-            "Extract structured clinical data from free-text patient notes "
-            "or transcripts."
-        ),
+        "description": ("Extract structured clinical data from free-text patient notes or transcripts."),
         "parameters": {
             "type": "object",
             "properties": {
@@ -119,6 +116,7 @@ Guidelines:
 # Step types emitted by the agent loop
 # ---------------------------------------------------------------------------
 
+
 def _step(step_type: str, data: Any) -> dict:
     logger.debug("Emitting step type=%s", step_type)
     return {"type": step_type, "data": data}
@@ -127,6 +125,7 @@ def _step(step_type: str, data: Any) -> dict:
 # ---------------------------------------------------------------------------
 # Agent loop
 # ---------------------------------------------------------------------------
+
 
 def run_agent(
     query: str,
@@ -162,7 +161,12 @@ def run_agent(
         - ``verification``— optional self-check before final answer
         - ``final``       — the completed response
     """
-    logger.info("run_agent called, query=%r, max_iterations=%d, tools=%d defined", query[:80], max_iterations, len(tools or ALL_TOOLS))
+    logger.info(
+        "run_agent called, query=%r, max_iterations=%d, tools=%d defined",
+        query[:80],
+        max_iterations,
+        len(tools or ALL_TOOLS),
+    )
     if tools is None:
         tools = ALL_TOOLS
 

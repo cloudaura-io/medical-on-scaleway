@@ -17,33 +17,33 @@ from __future__ import annotations
 
 import asyncio
 import logging
+
+# ---------------------------------------------------------------------------
+# Project path setup — must happen before any `src.*` import
+# ---------------------------------------------------------------------------
+import sys
 import time
 from pathlib import Path
 
 from fastapi import Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-# ---------------------------------------------------------------------------
-# Project path setup — must happen before any `src.*` import
-# ---------------------------------------------------------------------------
-import sys
-
 _project_root = str(Path(__file__).resolve().parents[1])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from src.logging_config import configure_logging
-from src.agent import run_agent, ALL_TOOLS
-from src.rag import search as rag_search
-from src.config import CHAT_MODEL, validate_config
-from src.verification import verify_claims
+from src.agent import ALL_TOOLS, run_agent
 from src.app_factory import (
     create_app,
-    mount_static,
-    create_index_route,
     create_health_endpoint,
+    create_index_route,
+    mount_static,
 )
+from src.config import CHAT_MODEL, validate_config
+from src.logging_config import configure_logging
+from src.rag import search as rag_search
 from src.sse_utils import format_sse_event, safe_streaming_wrapper
+from src.verification import verify_claims
 
 # ---------------------------------------------------------------------------
 # Logging — must be configured before anything else logs
@@ -55,12 +55,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Validate configuration upfront
 # ---------------------------------------------------------------------------
-validate_config(required_vars=[
-    "SCW_GENERATIVE_API_URL",
-    "SCW_SECRET_KEY",
-    "SCW_INFERENCE_ENDPOINT",
-    "DATABASE_URL",
-])
+validate_config(
+    required_vars=[
+        "SCW_GENERATIVE_API_URL",
+        "SCW_SECRET_KEY",
+        "SCW_INFERENCE_ENDPOINT",
+        "DATABASE_URL",
+    ]
+)
 
 # ---------------------------------------------------------------------------
 # Knowledge domains
@@ -69,43 +71,25 @@ validate_config(required_vars=[
 KNOWLEDGE_DOMAINS = [
     {
         "name": "Pharmacology",
-        "description": (
-            "Drug interactions, mechanisms of action, "
-            "pharmacokinetics, and adverse effects"
-        ),
+        "description": ("Drug interactions, mechanisms of action, pharmacokinetics, and adverse effects"),
         "chunks": 45,
     },
     {
         "name": "Cardiology",
-        "description": (
-            "Cardiac conditions, antiarrhythmic protocols, "
-            "heart failure management"
-        ),
+        "description": ("Cardiac conditions, antiarrhythmic protocols, heart failure management"),
         "chunks": 38,
     },
     {
         "name": "Clinical Trials",
-        "description": (
-            "Published trial data, endpoints, "
-            "inclusion/exclusion criteria, outcomes"
-        ),
+        "description": ("Published trial data, endpoints, inclusion/exclusion criteria, outcomes"),
         "chunks": 27,
     },
 ]
 
 SAMPLE_QUERIES = [
-    (
-        "Patient on empagliflozin for diabetes. "
-        "Cardiologist wants to start amiodarone. Any concerns?"
-    ),
-    (
-        "Compare statin options for a diabetic patient "
-        "with elevated LDL and mild liver enzyme elevation"
-    ),
-    (
-        "What monitoring is needed when initiating amiodarone "
-        "in an elderly patient with diabetes?"
-    ),
+    ("Patient on empagliflozin for diabetes. Cardiologist wants to start amiodarone. Any concerns?"),
+    ("Compare statin options for a diabetic patient with elevated LDL and mild liver enzyme elevation"),
+    ("What monitoring is needed when initiating amiodarone in an elderly patient with diabetes?"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -113,13 +97,10 @@ SAMPLE_QUERIES = [
 # ---------------------------------------------------------------------------
 
 
-def _handle_search_medical_knowledge(
-    query: str, domain: str | None = None
-) -> list[dict]:
+def _handle_search_medical_knowledge(query: str, domain: str | None = None) -> list[dict]:
     """Search the RAG knowledge base."""
     logger.info(
-        "_handle_search_medical_knowledge called, "
-        "query=%r, domain=%s",
+        "_handle_search_medical_knowledge called, query=%r, domain=%s",
         query[:80],
         domain,
     )
@@ -131,13 +112,10 @@ def _handle_search_medical_knowledge(
     return results
 
 
-def _handle_check_drug_interactions(
-    drug1: str, drug2: str
-) -> dict:
+def _handle_check_drug_interactions(drug1: str, drug2: str) -> dict:
     """Check drug interactions via knowledge base search."""
     logger.info(
-        "_handle_check_drug_interactions called, "
-        "drug1=%s, drug2=%s",
+        "_handle_check_drug_interactions called, drug1=%s, drug2=%s",
         drug1,
         drug2,
     )
@@ -203,9 +181,7 @@ async def research(request: Request):
     query = body.get("query", "")
     if not query:
         logger.warning("Research request received with empty query")
-        return JSONResponse(
-            {"error": "query is required"}, status_code=400
-        )
+        return JSONResponse({"error": "query is required"}, status_code=400)
 
     logger.info("Research request received, query=%r", query[:120])
 
@@ -218,21 +194,13 @@ async def research(request: Request):
                 tool_handlers=TOOL_HANDLERS,
                 tools=ALL_TOOLS,
             ):
-                if (
-                    step.get("type") == "final"
-                    and isinstance(step.get("data"), str)
-                ):
-                    logger.info(
-                        "Running Chain-of-Verification on "
-                        "final response"
-                    )
+                if step.get("type") == "final" and isinstance(step.get("data"), str):
+                    logger.info("Running Chain-of-Verification on final response")
                     findings = []
                     try:
                         findings = verify_claims(
                             step["data"],
-                            search_fn=lambda q: rag_search(
-                                q, top_k=3
-                            ),
+                            search_fn=lambda q: rag_search(q, top_k=3),
                         )
                         logger.info(
                             "CoVe completed, findings=%d",
@@ -244,24 +212,28 @@ async def research(request: Request):
                             exc,
                             exc_info=True,
                         )
-                        findings = [{
-                            "claim": "Verification failed",
-                            "status": "NO_EVIDENCE",
-                            "explanation": str(exc),
-                            "evidence": "",
-                            "source": None,
-                        }]
+                        findings = [
+                            {
+                                "claim": "Verification failed",
+                                "status": "NO_EVIDENCE",
+                                "explanation": str(exc),
+                                "evidence": "",
+                                "source": None,
+                            }
+                        ]
                     step_count += 1
                     logger.debug(
-                        "SSE event #%d, type=verification, "
-                        "findings=%d",
+                        "SSE event #%d, type=verification, findings=%d",
                         step_count,
                         len(findings),
                     )
-                    yield format_sse_event("step", {
-                        "type": "verification",
-                        "data": {"findings": findings},
-                    })
+                    yield format_sse_event(
+                        "step",
+                        {
+                            "type": "verification",
+                            "data": {"findings": findings},
+                        },
+                    )
                     await asyncio.sleep(0.05)
 
                 step_count += 1
@@ -279,10 +251,13 @@ async def research(request: Request):
                 exc,
                 exc_info=True,
             )
-            yield format_sse_event("step", {
-                "type": "final",
-                "data": {"error": str(exc)},
-            })
+            yield format_sse_event(
+                "step",
+                {
+                    "type": "final",
+                    "data": {"error": str(exc)},
+                },
+            )
         elapsed = time.perf_counter() - t0
         logger.info(
             "Research stream completed, steps=%d, elapsed=%.2fs",
@@ -299,16 +274,12 @@ async def research(request: Request):
 @app.get("/api/domains")
 async def domains():
     """Return the list of knowledge domains."""
-    logger.debug(
-        "Serving domains, count=%d", len(KNOWLEDGE_DOMAINS)
-    )
+    logger.debug("Serving domains, count=%d", len(KNOWLEDGE_DOMAINS))
     return JSONResponse(KNOWLEDGE_DOMAINS)
 
 
 @app.get("/api/sample-queries")
 async def sample_queries():
     """Return sample queries for the UI."""
-    logger.debug(
-        "Serving sample queries, count=%d", len(SAMPLE_QUERIES)
-    )
+    logger.debug("Serving sample queries, count=%d", len(SAMPLE_QUERIES))
     return JSONResponse(SAMPLE_QUERIES)

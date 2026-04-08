@@ -48,6 +48,7 @@ def check(name: str):
                 msg = str(e)
                 if VERBOSE:
                     import traceback
+
                     msg = traceback.format_exc()
                 results.append((name, False, msg))
                 print(f"  {RED}✗{NC} {name}: {msg}")
@@ -64,7 +65,7 @@ def check(name: str):
 
 @check("Generative APIs (chat)")
 def check_generative_api():
-    from src.config import get_generative_client, CHAT_MODEL
+    from src.config import CHAT_MODEL, get_generative_client
 
     client = get_generative_client()
     resp = client.chat.completions.create(
@@ -73,12 +74,12 @@ def check_generative_api():
         max_tokens=5,
     )
     content = resp.choices[0].message.content.strip()
-    return f"{CHAT_MODEL} -> \"{content}\""
+    return f'{CHAT_MODEL} -> "{content}"'
 
 
 @check("Generative APIs (STT model available)")
 def check_stt_model():
-    from src.config import get_generative_client, STT_MODEL
+    from src.config import STT_MODEL, get_generative_client
 
     client = get_generative_client()
     models = client.models.list()
@@ -90,7 +91,7 @@ def check_stt_model():
 
 @check("Generative APIs (vision model available)")
 def check_vision_model():
-    from src.config import get_generative_client, VISION_MODEL
+    from src.config import VISION_MODEL, get_generative_client
 
     client = get_generative_client()
     models = client.models.list()
@@ -102,7 +103,7 @@ def check_vision_model():
 
 @check("Managed Inference (embeddings)")
 def check_inference():
-    from src.config import get_inference_client, EMBEDDING_MODEL
+    from src.config import EMBEDDING_MODEL, get_inference_client
 
     client = get_inference_client()
     resp = client.embeddings.create(
@@ -128,9 +129,7 @@ def check_pgvector():
     from src.config import get_db_connection
 
     conn = get_db_connection()
-    row = conn.execute(
-        "SELECT extversion FROM pg_extension WHERE extname = 'vector'"
-    ).fetchone()
+    row = conn.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector'").fetchone()
     if not row:
         raise RuntimeError("pgvector extension not installed")
     return f"v{row[0]}"
@@ -141,9 +140,7 @@ def check_tables():
     from src.config import get_db_connection
 
     conn = get_db_connection()
-    rows = conn.execute(
-        "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
-    ).fetchall()
+    rows = conn.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename").fetchall()
     tables = [r[0] for r in rows]
     if not tables:
         raise RuntimeError("No tables found in public schema")
@@ -156,9 +153,7 @@ def check_knowledge_chunks():
 
     conn = get_db_connection()
     # Check if document_chunks table exists
-    exists = conn.execute(
-        "SELECT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'document_chunks')"
-    ).fetchone()[0]
+    exists = conn.execute("SELECT EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'document_chunks')").fetchone()[0]
     if not exists:
         raise RuntimeError("document_chunks table not found")
 
@@ -166,16 +161,14 @@ def check_knowledge_chunks():
     if count == 0:
         raise RuntimeError("No chunks loaded — run load-knowledge-base.py")
 
-    domains = conn.execute(
-        "SELECT domain, COUNT(*) FROM document_chunks GROUP BY domain ORDER BY domain"
-    ).fetchall()
+    domains = conn.execute("SELECT domain, COUNT(*) FROM document_chunks GROUP BY domain ORDER BY domain").fetchall()
     domain_str = ", ".join(f"{d[0]}({d[1]})" for d in domains)
     return f"{count} chunks [{domain_str}]"
 
 
 @check("S3 Object Storage")
 def check_s3():
-    from src.config import get_s3_client, get_s3_bucket
+    from src.config import get_s3_bucket, get_s3_client
 
     client = get_s3_client()
     bucket = get_s3_bucket()

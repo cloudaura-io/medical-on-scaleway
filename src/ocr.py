@@ -9,9 +9,8 @@ from __future__ import annotations
 import base64
 import logging
 from pathlib import Path
-from typing import Union
 
-from src.config import get_generative_client, VISION_MODEL
+from src.config import VISION_MODEL, get_generative_client
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +33,7 @@ Return ONLY the extracted text — no commentary.
 # ---------------------------------------------------------------------------
 # Single-image extraction
 # ---------------------------------------------------------------------------
+
 
 def extract_text_from_image(image_bytes: bytes, mime_type: str = "image/png") -> str:
     """Send an image to the vision model and return the extracted text.
@@ -88,6 +88,7 @@ def extract_text_from_image(image_bytes: bytes, mime_type: str = "image/png") ->
 # Multi-page PDF processing
 # ---------------------------------------------------------------------------
 
+
 def process_pdf(pdf_path: str, dpi: int = 300) -> list[dict]:
     """Convert each page of a PDF to an image and extract text via vision model.
 
@@ -106,8 +107,9 @@ def process_pdf(pdf_path: str, dpi: int = 300) -> list[dict]:
     list[dict]
         Each entry: ``{"page": int, "text": str}``.
     """
-    from pdf2image import convert_from_path
     import io
+
+    from pdf2image import convert_from_path
 
     logger.info("process_pdf called, pdf_path=%s, dpi=%d", pdf_path, dpi)
     path = Path(pdf_path)

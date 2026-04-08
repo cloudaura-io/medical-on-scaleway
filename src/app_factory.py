@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 # Project path setup
 # ------------------------------------------------------------------
+
 
 def setup_project_path(caller_file: str) -> Path:
     """Ensure the project root is on ``sys.path``.
@@ -50,6 +51,7 @@ def setup_project_path(caller_file: str) -> Path:
 # App creation
 # ------------------------------------------------------------------
 
+
 def create_app(title: str, version: str) -> FastAPI:
     """Create a FastAPI instance with standard CORS middleware.
 
@@ -75,6 +77,7 @@ def create_app(title: str, version: str) -> FastAPI:
 # Static file mounting
 # ------------------------------------------------------------------
 
+
 def mount_static(app: FastAPI, static_dir: Path) -> None:
     """Mount a directory of static assets at ``/static``.
 
@@ -94,6 +97,7 @@ def mount_static(app: FastAPI, static_dir: Path) -> None:
 # Index route
 # ------------------------------------------------------------------
 
+
 def create_index_route(app: FastAPI, static_dir: Path) -> None:
     """Register a ``GET /`` route that serves ``index.html``.
 
@@ -106,9 +110,7 @@ def create_index_route(app: FastAPI, static_dir: Path) -> None:
     @app.get("/", response_class=HTMLResponse)
     async def index() -> HTMLResponse:
         """Serve the single-page frontend."""
-        return HTMLResponse(
-            content=html_path.read_text(), status_code=200
-        )
+        return HTMLResponse(content=html_path.read_text(), status_code=200)
 
     logger.info("Registered index route serving %s", html_path)
 
@@ -116,6 +118,7 @@ def create_index_route(app: FastAPI, static_dir: Path) -> None:
 # ------------------------------------------------------------------
 # Health endpoint
 # ------------------------------------------------------------------
+
 
 def create_health_endpoint(
     app: FastAPI,
@@ -134,6 +137,7 @@ def create_health_endpoint(
             the health response.  Callable values are evaluated
             per request.
     """
+
     @app.get("/api/health")
     async def health() -> dict:
         """Return service health status."""

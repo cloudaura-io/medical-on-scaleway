@@ -12,35 +12,35 @@ Run:
 
 from __future__ import annotations
 
-import time
-import tempfile
-from pathlib import Path
-
+import contextlib
 import json
-
-from fastapi import File, UploadFile, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
 
 # ---------------------------------------------------------------------------
 # Project path setup — must happen before any `src.*` import
 # ---------------------------------------------------------------------------
 import sys
+import tempfile
+import time
+from pathlib import Path
+
+from fastapi import File, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse
 
 _project_root = str(Path(__file__).resolve().parents[1])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+from src.app_factory import (
+    create_app,
+    create_health_endpoint,
+    create_index_route,
+    mount_static,
+)
+from src.config import STT_MODEL, validate_config
+from src.extraction import extract_clinical_note
 from src.logging_config import configure_logging
 from src.transcription import transcribe_audio_diarized
 from src.transcription_realtime import RealtimeTranscriber, diarize_transcript
-from src.extraction import extract_clinical_note
-from src.config import STT_MODEL, validate_config
-from src.app_factory import (
-    create_app,
-    mount_static,
-    create_index_route,
-    create_health_endpoint,
-)
 
 # ---------------------------------------------------------------------------
 # Logging — must be configured before anything else logs
@@ -50,10 +50,12 @@ configure_logging()
 # ---------------------------------------------------------------------------
 # Validate configuration upfront
 # ---------------------------------------------------------------------------
-validate_config(required_vars=[
-    "SCW_GENERATIVE_API_URL",
-    "SCW_SECRET_KEY",
-])
+validate_config(
+    required_vars=[
+        "SCW_GENERATIVE_API_URL",
+        "SCW_SECRET_KEY",
+    ]
+)
 
 # ---------------------------------------------------------------------------
 # FastAPI app
@@ -164,10 +166,8 @@ async def ws_transcribe(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        try:
+        with contextlib.suppress(Exception):
             await websocket.send_json({"type": "error", "message": str(e)})
-        except Exception:
-            pass
     finally:
         await transcriber.disconnect()
 

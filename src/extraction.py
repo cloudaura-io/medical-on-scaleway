@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 
-from src.config import get_generative_client, CHAT_MODEL
+from src.config import CHAT_MODEL, get_generative_client
 from src.logging_config import timed_operation
 from src.models import CLINICAL_NOTE_SCHEMA
 
@@ -37,6 +37,7 @@ Rules:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 @timed_operation
 def extract_clinical_note(transcript: str) -> dict:

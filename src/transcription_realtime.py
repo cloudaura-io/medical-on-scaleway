@@ -19,7 +19,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 import websockets
 
@@ -55,15 +55,23 @@ class RealtimeTranscriber:
         logger.info("Session created: %s", self._session_id)
 
         # Send session.update with model
-        await self._ws.send(json.dumps({
-            "type": "session.update",
-            "model": f"mistralai/{REALTIME_STT_MODEL}",
-        }))
+        await self._ws.send(
+            json.dumps(
+                {
+                    "type": "session.update",
+                    "model": f"mistralai/{REALTIME_STT_MODEL}",
+                }
+            )
+        )
 
         # Send initial commit (signals ready to receive audio)
-        await self._ws.send(json.dumps({
-            "type": "input_audio_buffer.commit",
-        }))
+        await self._ws.send(
+            json.dumps(
+                {
+                    "type": "input_audio_buffer.commit",
+                }
+            )
+        )
         logger.info("Session initialised, ready for audio")
 
     async def send_audio(self, chunk: bytes) -> None:
@@ -72,20 +80,28 @@ class RealtimeTranscriber:
             raise RuntimeError("Not connected — call connect() first")
 
         encoded = base64.b64encode(chunk).decode("utf-8")
-        await self._ws.send(json.dumps({
-            "type": "input_audio_buffer.append",
-            "audio": encoded,
-        }))
+        await self._ws.send(
+            json.dumps(
+                {
+                    "type": "input_audio_buffer.append",
+                    "audio": encoded,
+                }
+            )
+        )
 
     async def finish(self) -> None:
         """Signal that all audio has been sent."""
         if self._ws is None:
             raise RuntimeError("Not connected — call connect() first")
 
-        await self._ws.send(json.dumps({
-            "type": "input_audio_buffer.commit",
-            "final": True,
-        }))
+        await self._ws.send(
+            json.dumps(
+                {
+                    "type": "input_audio_buffer.commit",
+                    "final": True,
+                }
+            )
+        )
         logger.info("Audio stream finalised")
 
     async def receive_deltas(self) -> AsyncIterator[str]:
@@ -130,6 +146,7 @@ class RealtimeTranscriber:
 # File decoding
 # ---------------------------------------------------------------------------
 
+
 def decode_audio_to_pcm(audio_path: str) -> bytes:
     """Decode an audio file (wav/mp3/ogg) to raw PCM16 mono 16kHz bytes.
 
@@ -148,12 +165,16 @@ def decode_audio_to_pcm(audio_path: str) -> bytes:
 
     logger.info(
         "WAV: channels=%d, sampwidth=%d, rate=%d, frames=%d",
-        n_channels, sampwidth, framerate, n_frames,
+        n_channels,
+        sampwidth,
+        framerate,
+        n_frames,
     )
 
     # If stereo, take only the left channel
     if n_channels == 2 and sampwidth == 2:
         import struct
+
         samples = struct.unpack(f"<{n_frames * 2}h", raw)
         raw = struct.pack(f"<{n_frames}h", *samples[::2])
 
@@ -163,6 +184,7 @@ def decode_audio_to_pcm(audio_path: str) -> bytes:
 # ---------------------------------------------------------------------------
 # File-to-realtime streaming
 # ---------------------------------------------------------------------------
+
 
 async def stream_file_realtime(pcm_data: bytes) -> AsyncIterator[str]:
     """Stream pre-decoded PCM audio through the Voxtral Realtime transcriber.
@@ -182,6 +204,7 @@ async def stream_file_realtime(pcm_data: bytes) -> AsyncIterator[str]:
 
     # Launch audio sending concurrently
     import asyncio
+
     send_task = asyncio.create_task(_send_audio())
 
     try:
@@ -196,15 +219,18 @@ async def stream_file_realtime(pcm_data: bytes) -> AsyncIterator[str]:
 # Health check & fallback
 # ---------------------------------------------------------------------------
 
+
 async def is_realtime_available() -> bool:
     """Check whether the vLLM realtime endpoint is reachable."""
     import os
+
     url = os.getenv("SCW_VOXTRAL_REALTIME_ENDPOINT", "")
     if not url:
         return False
 
     try:
         import asyncio
+
         ws_url = get_realtime_ws_url()
         ws = await asyncio.wait_for(websockets.connect(ws_url), timeout=3.0)
         await ws.close()
