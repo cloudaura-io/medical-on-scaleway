@@ -1,5 +1,5 @@
 /* ============================================================
-   Document Intelligence — Scaleway Brand Dark Theme
+   Document Intelligence - Scaleway Brand Dark Theme
    ============================================================ */
 
 /* ------ CSS Variables ------ */
@@ -139,6 +139,25 @@ code, pre, .mono {
 
 .header-left {
     flex-shrink: 0;
+}
+
+.header-home-btn {
+    color: #8b8b9e;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid #2a2d3e;
+    border-radius: 0.35rem;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    cursor: pointer;
+    margin-left: 0.75rem;
+}
+
+.header-home-btn:hover {
+    color: #e0e0e0;
+    border-color: #4c3d99;
+    background: rgba(139, 92, 246, 0.08);
 }
 
 .brand-logos {

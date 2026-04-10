@@ -1,4 +1,4 @@
-"""Tests for file-to-realtime streaming — decode audio file and stream through vLLM."""
+"""Tests for file-to-realtime streaming - decode audio file and stream through vLLM."""
 
 from __future__ import annotations
 

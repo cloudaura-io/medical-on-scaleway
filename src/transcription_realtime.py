@@ -5,7 +5,7 @@ Connects to the vLLM ``/v1/realtime`` WebSocket endpoint, streams PCM16
 audio chunks, and yields transcription text deltas as they arrive.
 
 Protocol (vLLM Realtime API):
-  1. Client opens WebSocket → server sends ``session.created``
+  1. Client opens WebSocket -> server sends ``session.created``
   2. Client sends ``session.update`` with model name
   3. Client sends ``input_audio_buffer.commit`` (initial)
   4. Client streams ``input_audio_buffer.append`` with base64 PCM16 chunks
@@ -77,7 +77,7 @@ class RealtimeTranscriber:
     async def send_audio(self, chunk: bytes) -> None:
         """Send a PCM16 audio chunk (base64-encoded) to the model."""
         if self._ws is None:
-            raise RuntimeError("Not connected — call connect() first")
+            raise RuntimeError("Not connected - call connect() first")
 
         encoded = base64.b64encode(chunk).decode("utf-8")
         await self._ws.send(
@@ -92,7 +92,7 @@ class RealtimeTranscriber:
     async def finish(self) -> None:
         """Signal that all audio has been sent."""
         if self._ws is None:
-            raise RuntimeError("Not connected — call connect() first")
+            raise RuntimeError("Not connected - call connect() first")
 
         await self._ws.send(
             json.dumps(
@@ -107,7 +107,7 @@ class RealtimeTranscriber:
     async def receive_deltas(self) -> AsyncIterator[str]:
         """Yield transcription text deltas until transcription.done is received."""
         if self._ws is None:
-            raise RuntimeError("Not connected — call connect() first")
+            raise RuntimeError("Not connected - call connect() first")
 
         while True:
             raw = await self._ws.recv()

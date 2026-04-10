@@ -19,8 +19,9 @@ env/
 # OpenTofu
 infrastructure/.terraform/
 infrastructure/*.tfstate
-infrastructure/*.tfstate.backup
-infrastructure/.terraform.lock.hcl
+infrastructure/*.tfstate*backup
+infrastructure/.terraform.tfstate.lock.info
+
 infrastructure/terraform.tfvars
 infrastructure/*.auto.tfvars
 

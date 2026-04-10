@@ -1,5 +1,5 @@
 /* ============================================================
-   Document Intelligence — Frontend Controller
+   Document Intelligence - Frontend Controller
    Scaleway Brand Design
    ============================================================ */
 
@@ -249,7 +249,7 @@
         try {
             const formData = new FormData();
             formData.append('file', file);
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const res = await fetch('api/upload', { method: 'POST', body: formData });
 
             if (!res.ok) {
                 const err = await res.json();
@@ -284,7 +284,7 @@
         showAiAnimation('ocr');
 
         try {
-            const res = await fetch(`/api/process/${entry.docId}`, { method: 'POST' });
+            const res = await fetch(`api/process/${entry.docId}`, { method: 'POST' });
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
@@ -381,7 +381,7 @@
         showAiAnimation('search');
 
         try {
-            const res = await fetch('/api/query', {
+            const res = await fetch('api/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query }),

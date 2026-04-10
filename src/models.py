@@ -4,11 +4,11 @@ JSON schemas for Mistral structured output.
 These are plain Python dicts intended for use with:
     response_format={"type": "json_schema", "json_schema": {"name": ..., "schema": ...}}
 
-No Pydantic — keeps dependencies light and matches the Mistral API directly.
+No Pydantic - keeps dependencies light and matches the Mistral API directly.
 """
 
 # ---------------------------------------------------------------------------
-# ClinicalNote — structured extraction from a doctor-patient transcript
+# ClinicalNote - structured extraction from a doctor-patient transcript
 # ---------------------------------------------------------------------------
 
 CLINICAL_NOTE_SCHEMA = {
@@ -79,7 +79,7 @@ CLINICAL_NOTE_SCHEMA = {
 }
 
 # ---------------------------------------------------------------------------
-# DrugInteraction — pairwise interaction check
+# DrugInteraction - pairwise interaction check
 # ---------------------------------------------------------------------------
 
 DRUG_INTERACTION_SCHEMA = {
@@ -115,7 +115,7 @@ DRUG_INTERACTION_SCHEMA = {
 }
 
 # ---------------------------------------------------------------------------
-# ResearchFinding — a single claim extracted from AI-generated text
+# ResearchFinding - a single claim extracted from AI-generated text
 # ---------------------------------------------------------------------------
 
 RESEARCH_FINDING_SCHEMA = {
