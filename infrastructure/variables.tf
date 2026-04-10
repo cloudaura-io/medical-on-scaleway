@@ -25,6 +25,12 @@ variable "project_id" {
   type        = string
 }
 
+variable "domain_name" {
+  description = "Domain name for Let's Encrypt TLS. Leave empty for HTTP-only (no domain needed)."
+  type        = string
+  default     = ""
+}
+
 variable "student_id" {
   description = "Unique student identifier used to namespace all resources (e.g. student-01)"
   type        = string
@@ -35,3 +41,20 @@ variable "student_id" {
   }
 }
 
+variable "region" {
+  description = "Scaleway region"
+  type        = string
+  default     = "fr-par"
+}
+
+variable "zone" {
+  description = "Scaleway availability zone"
+  type        = string
+  default     = "fr-par-1"
+}
+
+variable "embedding_model_id" {
+  description = "Scaleway Managed Inference model UUID for BGE embeddings"
+  type        = string
+  default     = "d58efec4-b667-48e2-8ad8-bcc26c175ae6"
+}

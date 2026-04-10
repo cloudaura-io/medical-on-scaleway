@@ -1,0 +1,197 @@
+#cloud-config
+# Scaleway Medical AI Lab - Application Server
+# Installs Docker, authenticates with Scaleway Container Registry,
+# pulls pre-built showcase images, and starts all services.
+# No build step - images are pushed by setup.sh before instance boot.
+
+write_files:
+  # -- Landing page HTML ------------------------------------------------------
+  - path: /opt/app/landing/index.html
+    permissions: "0644"
+    content: |
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Scaleway Medical AI Lab</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Space Grotesk', system-ui, sans-serif;
+            background: #0d0f17; color: #e0e0e0;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; padding: 2rem;
+          }
+          .container { max-width: 540px; width: 100%; }
+          .logos { display: flex; align-items: center; gap: 12px; margin-bottom: 2.5rem; }
+          .logos img:first-child { height: 24px; opacity: 0.7; }
+          .logos img:last-child { height: 28px; opacity: 0.7; }
+          h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.4rem; }
+          .subtitle { color: #6b6b80; margin-bottom: 2rem; font-size: 0.9rem; font-family: 'Inter', sans-serif; }
+          .label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #555; margin-bottom: 0.75rem; }
+          .cards { display: flex; flex-direction: column; gap: 0.625rem; }
+          a {
+            display: block; background: #13151f;
+            border: 1px solid #1e2133;
+            border-radius: 0.5rem; padding: 1rem 1.25rem;
+            color: #e0e0e0; text-decoration: none;
+            transition: border-color 0.15s, background 0.15s;
+          }
+          a:hover { background: #181b28; border-color: #4c3d99; }
+          .card-name { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.2rem; }
+          .card-num { color: #555; font-weight: 500; margin-right: 0.5rem; }
+          .card-desc { font-size: 0.8rem; color: #555; font-family: 'Inter', sans-serif; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="logos">
+            <img src="https://www.scaleway.com/_next/static/media/logo.0___bgwq5tr67.svg" alt="Scaleway">
+            <img src="https://cloudaura.io/logo_white.png" alt="cloudaura.io">
+          </div>
+          <h1>Medical AI Lab</h1>
+          <p class="subtitle">Sovereign European AI for healthcare, powered by Scaleway cloud and Mistral models.</p>
+          <p class="label">Showcases</p>
+          <div class="cards" id="links"></div>
+        </div>
+        <script>
+          var showcases = [
+            {path: "consultation-assistant", num: "01", name: "Consultation Assistant", desc: "Real-time medical transcription and clinical data extraction"},
+            {path: "document-intelligence", num: "02", name: "Document Intelligence", desc: "Medical document OCR, vector indexing, and RAG Q&A"},
+            {path: "research-agent", num: "03", name: "Research Agent", desc: "Multi-domain medical research with tool calling"}
+          ];
+          var el = document.getElementById("links");
+          showcases.forEach(function(s) {
+            el.innerHTML += '<a href="/' + s.path + '/"><div class="card-name"><span class="card-num">' + s.num + '</span>' + s.name + '</div><div class="card-desc">' + s.desc + '</div></a>';
+          });
+        </script>
+      </body>
+      </html>
+
+  # -- Caddyfile (path-based reverse proxy) -------------------------------------
+  - path: /opt/app/Caddyfile
+    permissions: "0644"
+    content: |
+      :80 {
+%{ if tls_enabled ~}
+          # Redirect HTTP to HTTPS (LB sets X-Forwarded-Proto header)
+          @httpOnly header X-Forwarded-Proto http
+          redir @httpOnly https://{host}{uri} 301
+
+%{ endif ~}
+          # Redirect bare paths to trailing slash
+          @addslash path /consultation-assistant /document-intelligence /research-agent
+          redir @addslash {path}/ 301
+
+          # Lightweight health check for LB (does not depend on any upstream)
+          handle /healthz {
+              respond "OK" 200
+          }
+
+          # Showcase routing (strip prefix, forward to container)
+          handle_path /consultation-assistant/* {
+              reverse_proxy showcase1:8001
+          }
+          handle_path /document-intelligence/* {
+              reverse_proxy showcase2:8002
+          }
+          handle_path /research-agent/* {
+              reverse_proxy showcase3:8003
+          }
+
+          # GPU health: ssh -p 2201 root@<domain>, then: curl http://<gpu-ip>:8000/health
+
+          # Landing page (fallback for everything else)
+          handle {
+              root * /srv/landing
+              file_server
+          }
+      }
+
+  # -- Docker Compose (pull-only, no build) -----------------------------------
+  - path: /opt/app/docker-compose.yaml
+    permissions: "0644"
+    content: |
+      services:
+        landing:
+          image: caddy:2.9.1-alpine
+          ports:
+            - "80:80"
+          volumes:
+            - /opt/app/Caddyfile:/etc/caddy/Caddyfile:ro
+            - /opt/app/landing:/srv/landing:ro
+          restart: unless-stopped
+
+        showcase1:
+          image: rg.fr-par.scw.cloud/${registry_namespace}/showcase1:latest
+          command: ["uvicorn", "01_consultation_assistant.main:app", "--host", "0.0.0.0", "--port", "8001"]
+          expose:
+            - "8001"
+          env_file: /opt/app/.env
+          restart: unless-stopped
+
+        showcase2:
+          image: rg.fr-par.scw.cloud/${registry_namespace}/showcase2:latest
+          command: ["uvicorn", "02_document_intelligence.main:app", "--host", "0.0.0.0", "--port", "8002"]
+          expose:
+            - "8002"
+          env_file: /opt/app/.env
+          restart: unless-stopped
+
+        showcase3:
+          image: rg.fr-par.scw.cloud/${registry_namespace}/showcase3:latest
+          command: ["uvicorn", "03_research_agent.main:app", "--host", "0.0.0.0", "--port", "8003"]
+          expose:
+            - "8003"
+          env_file: /opt/app/.env
+          restart: unless-stopped
+
+  # -- Application .env (injected by OpenTofu) --------------------------------
+  - path: /opt/app/.env
+    permissions: "0600"
+    content: |
+      SCW_ACCESS_KEY=${scw_access_key}
+      SCW_SECRET_KEY=${scw_secret_key}
+      SCW_PROJECT_ID=${scw_project_id}
+      SCW_GENERATIVE_API_URL=https://api.scaleway.ai/v1
+      SCW_INFERENCE_ENDPOINT=${inference_endpoint}
+      SCW_VOXTRAL_REALTIME_ENDPOINT=http://${voxtral_private_ip}:8000/v1
+      DATABASE_URL=postgresql://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?sslmode=require
+      SCW_S3_ENDPOINT=https://s3.fr-par.scw.cloud
+      SCW_S3_BUCKET=${s3_bucket}
+
+  # -- Startup script (with retry for image availability) ----------------------
+  - path: /opt/app/start.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      echo "[app] Authenticating with Scaleway Container Registry..."
+      echo "${scw_secret_key}" | docker login rg.fr-par.scw.cloud/${registry_namespace} -u nologin --password-stdin
+      echo "[app] Pulling images (will retry until available)..."
+      for attempt in $(seq 1 30); do
+        if cd /opt/app && docker compose pull 2>/dev/null; then
+          echo "[app] Images pulled. Starting services..."
+          docker compose up -d
+          echo "[app] All services started."
+          exit 0
+        fi
+        echo "[app] Attempt $attempt: images not yet available, retrying in 30s..."
+        sleep 30
+      done
+      echo "[app] ERROR: Failed to pull images after 30 attempts"
+      exit 1
+
+runcmd:
+  # Wait for network (private NIC attaches after boot)
+  - for i in $(seq 1 30); do curl -sf --max-time 3 https://get.docker.com > /dev/null 2>&1 && break; sleep 5; done
+  # Install Docker Engine
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable docker
+  - systemctl start docker
+  # Start the application (retries pulls until images are pushed)
+  # Note: database schema is created lazily by the backend on first request
+  - /opt/app/start.sh

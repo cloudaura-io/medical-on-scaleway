@@ -1,4 +1,4 @@
-"""Tests for src/sse_utils.py — SSE formatting and streaming utilities."""
+"""Tests for src/sse_utils.py - SSE formatting and streaming utilities."""
 
 from __future__ import annotations
 
@@ -137,7 +137,7 @@ class TestSafeStreamingWrapper:
 
         async def immediate_fail():
             raise ValueError("Bad input")
-            yield  # pragma: no cover — makes this an async generator
+            yield  # pragma: no cover - makes this an async generator
 
         async def collect():
             results = []

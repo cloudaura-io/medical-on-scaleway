@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Research Agent — Scaleway Medical AI Lab</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>Research Agent - Scaleway Medical AI Lab</title>
+    <link rel="stylesheet" href="static/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🔬</text></svg>">
 </head>
 <body>
@@ -14,8 +14,8 @@
          ============================================================ -->
     <header class="header">
         <div class="header__left">
-            <img src="https://www.scaleway.com/_next/static/media/logo.7e2996cb.svg" alt="Scaleway" class="header__brand-scw">
-            <img src="https://cloudaura.io/logo_white.png" alt="cloudaura.io" class="header__brand-ca">
+            <img src="static/scaleway-logo.svg" alt="Scaleway" class="header__brand-scw">
+            <img src="static/cloudaura-logo.png" alt="cloudaura.io" class="header__brand-ca">
         </div>
         <div class="header__center">
             <span class="header__title">RESEARCH AGENT</span>
@@ -24,6 +24,7 @@
         </div>
         <div class="header__right">
             <span class="header__subtitle">Cross-domain Medical Intelligence</span>
+            <a class="header__home-btn" id="homeLink">Home</a>
         </div>
         <div class="header__gradient-line"></div>
     </header>
@@ -249,6 +250,7 @@
         </div>
     </footer>
 
-    <script src="/static/app.js"></script>
+    <script src="static/app.js"></script>
+    <script>document.getElementById('homeLink').href='/';</script>
 </body>
 </html>

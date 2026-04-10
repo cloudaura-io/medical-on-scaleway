@@ -26,7 +26,7 @@ _EXTRACT_CLAIMS_PROMPT = """\
 You are a fact-checking assistant.  Given the following response, extract
 every distinct factual medical claim as a JSON array of strings.
 
-Return ONLY a JSON array — no surrounding text.
+Return ONLY a JSON array - no surrounding text.
 
 Response:
 {response}
@@ -38,7 +38,7 @@ that could be used to verify it against a medical knowledge base.
 
 Claim: {claim}
 
-Return ONLY the search query — no explanation.
+Return ONLY the search query - no explanation.
 """
 
 _JUDGE_PROMPT = """\

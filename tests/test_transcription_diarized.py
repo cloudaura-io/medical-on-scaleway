@@ -131,7 +131,7 @@ class TestTranscribeAudioDiarizedPrompt:
 
 
 class TestTranscribeAudioDiarizedNoSystemMessage:
-    """No system message must be used — only user message."""
+    """No system message must be used - only user message."""
 
     def test_no_system_message(self) -> None:
         """The messages list must not contain any system messages."""

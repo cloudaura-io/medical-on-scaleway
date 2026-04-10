@@ -1,5 +1,5 @@
 """
-Showcase 2 — Medical Document Intelligence
+Showcase 2 - Medical Document Intelligence
 
 FastAPI backend that orchestrates:
   1. PDF upload
@@ -16,7 +16,7 @@ import asyncio
 import os
 
 # ---------------------------------------------------------------------------
-# Project path setup — must happen before any `src.*` import
+# Project path setup - must happen before any `src.*` import
 # ---------------------------------------------------------------------------
 import sys
 import tempfile
@@ -42,7 +42,7 @@ from src.logging_config import configure_logging
 from src.sse_utils import format_sse_event, safe_streaming_wrapper
 
 # ---------------------------------------------------------------------------
-# Logging — must be configured before anything else logs
+# Logging - must be configured before anything else logs
 # ---------------------------------------------------------------------------
 configure_logging()
 

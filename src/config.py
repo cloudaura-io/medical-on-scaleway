@@ -1,5 +1,5 @@
 """
-Shared configuration — Scaleway service clients.
+Shared configuration - Scaleway service clients.
 
 Loads environment from .env and exposes pre-configured clients for:
 - Generative APIs  (chat, STT, vision via OpenAI-compatible endpoint)
@@ -51,7 +51,7 @@ def validate_config(
 ) -> None:
     """Check that all required environment variables are set.
 
-    Call this at application startup — before creating any clients —
+    Call this at application startup - before creating any clients -
     so that missing configuration is surfaced immediately with a
     single, clear error message rather than failing on the first
     API call.
@@ -117,7 +117,7 @@ def get_realtime_ws_url() -> str:
 def get_inference_client():
     """OpenAI client pointing at a Managed Inference deployment.
 
-    Dedicated GPU endpoint for BGE embeddings — keeps patient data
+    Dedicated GPU endpoint for BGE embeddings - keeps patient data
     on isolated infrastructure.
     """
     from openai import OpenAI

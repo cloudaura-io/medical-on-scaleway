@@ -60,7 +60,7 @@ async def safe_streaming_wrapper(
         generator: An async iterator that yields SSE-formatted strings.
 
     Yields:
-        SSE-formatted strings — either from the original generator or
+        SSE-formatted strings - either from the original generator or
         a synthesised error event.
     """
     try:

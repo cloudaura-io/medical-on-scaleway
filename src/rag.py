@@ -277,7 +277,7 @@ def generate_cited_response(
     query:
         The user's question.
     context_chunks:
-        Results from :func:`search` — each must have ``source`` and ``content``.
+        Results from :func:`search` - each must have ``source`` and ``content``.
 
     Returns
     -------

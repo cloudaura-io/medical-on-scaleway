@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
 
@@ -20,8 +20,8 @@
     <header class="header">
         <div class="header-left">
             <div class="brand-logos">
-                <img src="https://www.scaleway.com/_next/static/media/logo.7e2996cb.svg" alt="Scaleway" class="brand-scaleway">
-                <img src="https://cloudaura.io/logo_white.png" alt="cloudaura.io" class="brand-cloudaura">
+                <img src="static/scaleway-logo.svg" alt="Scaleway" class="brand-scaleway">
+                <img src="static/cloudaura-logo.png" alt="cloudaura.io" class="brand-cloudaura">
             </div>
         </div>
         <div class="header-center">
@@ -29,6 +29,7 @@
         </div>
         <div class="header-right">
             <span class="header-badge">AI-Powered</span>
+            <a class="header-home-btn" id="homeLink">Home</a>
         </div>
         <div class="header-border"></div>
     </header>
@@ -222,6 +223,7 @@
 
 </div>
 
-<script src="/static/app.js?v=2"></script>
+<script src="static/app.js?v=2"></script>
+<script>document.getElementById('homeLink').href='/';</script>
 </body>
 </html>

@@ -28,9 +28,9 @@ python main.py
 
 ## Endpoints
 
-- `GET /` — Frontend
-- `POST /api/upload` — Upload a PDF
-- `POST /api/process/{doc_id}` — OCR + index (SSE progress stream)
-- `POST /api/query` — RAG query with citations
-- `GET /api/documents` — List processed documents
-- `GET /api/health` — Health check
+- `GET /` - Frontend
+- `POST /api/upload` - Upload a PDF
+- `POST /api/process/{doc_id}` - OCR + index (SSE progress stream)
+- `POST /api/query` - RAG query with citations
+- `GET /api/documents` - List processed documents
+- `GET /api/health` - Health check
