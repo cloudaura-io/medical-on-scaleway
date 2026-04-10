@@ -1,7 +1,7 @@
 """
 Tool-calling agent loop using OpenAI-compatible function calling.
 
-No LangGraph — a plain Python loop that yields structured steps,
+No LangGraph - a plain Python loop that yields structured steps,
 ready for SSE streaming.
 """
 
@@ -107,7 +107,7 @@ and extract structured data from clinical text.
 Guidelines:
 - ALWAYS search the knowledge base before answering medical questions.
 - Cite your sources using [Source: <name>] after each factual statement.
-- If you are uncertain, say so — never fabricate medical information.
+- If you are uncertain, say so - never fabricate medical information.
 - For drug interactions, always use the dedicated tool.
 - Think step-by-step: state your reasoning before giving a final answer.
 """
@@ -154,12 +154,12 @@ def run_agent(
         Steps of the form ``{"type": <step_type>, "data": <payload>}`` where
         *step_type* is one of:
 
-        - ``thinking``    — the model's chain-of-thought reasoning
-        - ``tool_call``   — a tool invocation request
-        - ``tool_result`` — the result returned by the tool handler
-        - ``synthesis``   — intermediate synthesis after tool results
-        - ``verification``— optional self-check before final answer
-        - ``final``       — the completed response
+        - ``thinking``    - the model's chain-of-thought reasoning
+        - ``tool_call``   - a tool invocation request
+        - ``tool_result`` - the result returned by the tool handler
+        - ``synthesis``   - intermediate synthesis after tool results
+        - ``verification``- optional self-check before final answer
+        - ``final``       - the completed response
     """
     logger.info(
         "run_agent called, query=%r, max_iterations=%d, tools=%d defined",

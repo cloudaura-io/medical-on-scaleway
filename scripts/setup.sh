@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
 ################################################################################
-# Scaleway Medical AI Lab — Full Infrastructure Setup
+# Scaleway Medical AI Lab - Full Infrastructure Setup
 #
-# This script orchestrates the entire setup:
 #   1. Check prerequisites
 #   2. Provision infrastructure with OpenTofu
-#   3. Generate .env from OpenTofu outputs
-#   4. Initialize database schema (pgvector + tables)
-#   5. Install Python dependencies
-#   6. Load knowledge base into pgvector
-#   7. Validate all services
+#   3. Build and push Docker images to Scaleway Container Registry
+#   4. Generate .env from OpenTofu outputs
+#   5. Database and knowledge base (schema created lazily by backend)
+#   6. Wait for application services to start
 #
-# Usage:
-#   ./scripts/setup.sh                     # interactive (prompts for missing vars)
-#   ./scripts/setup.sh --skip-tofu          # skip OpenTofu (infra already exists)
-#   ./scripts/setup.sh --skip-knowledge    # skip knowledge base loading
+# Architecture: VPC-enclosed with Public Load Balancer + Container Registry.
+# All three showcases run as pre-built Docker images on a single instance.
+# Database schema is initialized automatically via cloud-init.
 ################################################################################
 set -euo pipefail
 
@@ -22,7 +19,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INFRA_DIR="$PROJECT_ROOT/infrastructure"
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -30,100 +26,65 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Flags
 SKIP_TOFU=false
-SKIP_KNOWLEDGE=false
 
 for arg in "$@"; do
     case "$arg" in
         --skip-tofu) SKIP_TOFU=true ;;
-        --skip-knowledge) SKIP_KNOWLEDGE=true ;;
         --help|-h)
-            echo "Usage: $0 [--skip-tofu] [--skip-knowledge]"
-            echo ""
-            echo "  --skip-tofu       Skip OpenTofu provisioning (infra already exists)"
-            echo "  --skip-knowledge  Skip loading knowledge base into pgvector"
+            echo "Usage: $0 [--skip-tofu]"
+            echo "  --skip-tofu  Skip OpenTofu provisioning (infra already exists)"
             exit 0
             ;;
         *) echo "Unknown argument: $arg"; exit 1 ;;
     esac
 done
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────────────
-
-step() { echo -e "\n${BLUE}━━━ [$1/7] $2${NC}\n"; }
+step() { echo -e "\n${BLUE}━━━ [$1/6] $2${NC}\n"; }
 ok()   { echo -e "  ${GREEN}✓${NC} $1"; }
 warn() { echo -e "  ${YELLOW}!${NC} $1"; }
 fail() { echo -e "  ${RED}✗ $1${NC}"; exit 1; }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 1. Prerequisites
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 step 1 "Checking prerequisites"
 
 check_cmd() {
     if command -v "$1" &>/dev/null; then
-        ok "$1 found: $(command -v "$1")"
+        ok "$1 found"
     else
         fail "$1 is required but not installed. $2"
     fi
 }
 
-check_cmd python3 "Install Python 3.11+ from https://python.org"
-check_cmd pip     "Should be bundled with Python 3"
-check_cmd psql    "Install: apt install postgresql-client / brew install libpq"
+check_cmd docker  "Install from https://docs.docker.com/get-docker/"
 
 if [ "$SKIP_TOFU" = false ]; then
     check_cmd tofu "Install from https://opentofu.org/docs/intro/install/"
 fi
 
-# Verify Python version >= 3.11
-PY_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-PY_MAJOR=$(echo "$PY_VERSION" | cut -d. -f1)
-PY_MINOR=$(echo "$PY_VERSION" | cut -d. -f2)
-if [ "$PY_MAJOR" -ge 3 ] && [ "$PY_MINOR" -ge 11 ]; then
-    ok "Python $PY_VERSION (>= 3.11)"
-else
-    fail "Python >= 3.11 required, found $PY_VERSION"
-fi
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. OpenTofu — provision Scaleway infrastructure
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# 2. Provision infrastructure
+# -----------------------------------------------------------------------------
 step 2 "Provisioning infrastructure (OpenTofu)"
 
 if [ "$SKIP_TOFU" = true ]; then
     warn "Skipped (--skip-tofu)"
 else
-    # Ensure terraform.tfvars exists
     if [ ! -f "$INFRA_DIR/terraform.tfvars" ]; then
         echo -e "${CYAN}No terraform.tfvars found. Creating from template...${NC}"
         cp "$INFRA_DIR/terraform.tfvars.example" "$INFRA_DIR/terraform.tfvars"
-
-        echo ""
-        echo -e "${YELLOW}Please edit infrastructure/terraform.tfvars with your Scaleway credentials:${NC}"
-        echo "  - access_key       (from Scaleway Console > IAM > API Keys)"
-        echo "  - secret_key       (from Scaleway Console > IAM > API Keys)"
-        echo "  - organization_id  (from Scaleway Console > Organization Settings)"
-        echo "  - project_id       (from Scaleway Console > Project Settings)"
-        echo "  - student_id      (unique identifier, e.g. student-01)"
-        echo "  - db_password     (minimum 12 characters)"
-        echo ""
-        read -rp "Press ENTER after editing terraform.tfvars (or Ctrl+C to abort)... "
+        echo -e "${YELLOW}Please edit infrastructure/terraform.tfvars with your Scaleway credentials.${NC}"
+        read -rp "Press ENTER after editing (or Ctrl+C to abort)... "
     fi
 
     ok "terraform.tfvars found"
 
-    echo -e "  ${CYAN}Running tofu init...${NC}"
     (cd "$INFRA_DIR" && tofu init -input=false)
     ok "OpenTofu initialized"
-
-    echo -e "  ${CYAN}Running tofu plan...${NC}"
     (cd "$INFRA_DIR" && tofu plan -out=tfplan)
 
-    echo ""
     read -rp "  Apply this plan? [y/N] " confirm
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
         (cd "$INFRA_DIR" && tofu apply tfplan)
@@ -131,70 +92,66 @@ else
         ok "Infrastructure provisioned"
     else
         rm -f "$INFRA_DIR/tfplan"
-        fail "OpenTofu apply cancelled by user"
+        fail "OpenTofu apply cancelled"
     fi
 fi
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. Generate .env from OpenTofu outputs
-# ─────────────────────────────────────────────────────────────────────────────
-step 3 "Generating .env configuration"
+# -----------------------------------------------------------------------------
+# 3. Build and push Docker images
+# -----------------------------------------------------------------------------
+step 3 "Building and pushing Docker images to Container Registry"
+
+"$SCRIPT_DIR/build-push-images.sh"
+ok "All showcase images pushed"
+
+# -----------------------------------------------------------------------------
+# 4. Generate .env
+# -----------------------------------------------------------------------------
+step 4 "Generating .env configuration"
 
 "$SCRIPT_DIR/generate-env.sh"
 ok ".env generated from OpenTofu outputs"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. Initialize database schema
-# ─────────────────────────────────────────────────────────────────────────────
-step 4 "Initializing database schema"
+# -----------------------------------------------------------------------------
+# 5. Database + knowledge base
+# -----------------------------------------------------------------------------
+step 5 "Database and knowledge base"
+ok "Schema created lazily by the backend on first request"
+echo -e "  ${YELLOW}To seed the RAG knowledge base, SSH into the app instance after boot:${NC}"
+echo -e "  ${CYAN}ssh -p 2201 root@<domain-or-lb-ip>${NC}"
+echo -e "  ${CYAN}docker compose -f /opt/app/docker-compose.yaml exec showcase2 python scripts/load-knowledge-base.py${NC}"
 
-"$SCRIPT_DIR/init-db.sh"
-ok "Database schema initialized"
+# -----------------------------------------------------------------------------
+# 6. Wait for services
+# -----------------------------------------------------------------------------
+step 6 "Waiting for application services"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. Python virtual environment + dependencies
-# ─────────────────────────────────────────────────────────────────────────────
-step 5 "Setting up Python venv and dependencies"
+BASE_URL=$(cd "$INFRA_DIR" && tofu output -raw base_url)
+echo -e "  Base URL: ${CYAN}${BASE_URL}${NC}"
+echo -e "  ${YELLOW}Cloud-init is installing Docker and pulling images (~3-5 min)${NC}"
 
-VENV_DIR="$PROJECT_ROOT/.venv"
-if [ ! -d "$VENV_DIR" ]; then
-    python3 -m venv "$VENV_DIR"
-    ok "Created venv at .venv/"
-else
-    ok "Existing venv found at .venv/"
+MAX_RETRIES=20
+for i in $(seq 1 $MAX_RETRIES); do
+    if curl -sf --insecure "${BASE_URL}/consultation-assistant/api/health" > /dev/null 2>&1; then
+        ok "Showcase 1 (Consultation Assistant) is healthy"
+        break
+    fi
+    echo -e "  ${YELLOW}Waiting... (attempt $i/$MAX_RETRIES)${NC}"
+    sleep 30
+done
+
+if ! curl -sf --insecure "${BASE_URL}/consultation-assistant/api/health" > /dev/null 2>&1; then
+    warn "Showcase 1 not yet healthy. Cloud-init may still be running."
 fi
-
-# shellcheck disable=SC1091
-source "$VENV_DIR/bin/activate"
-ok "Activated venv ($(python3 --version))"
-
-pip install -q -r "$PROJECT_ROOT/requirements.txt"
-ok "Python dependencies installed"
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 6. Load knowledge base
-# ─────────────────────────────────────────────────────────────────────────────
-step 6 "Loading knowledge base into pgvector"
-
-if [ "$SKIP_KNOWLEDGE" = true ]; then
-    warn "Skipped (--skip-knowledge)"
-else
-    python3 "$SCRIPT_DIR/load-knowledge-base.py"
-    ok "Knowledge base loaded"
-fi
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 7. Validate
-# ─────────────────────────────────────────────────────────────────────────────
-step 7 "Validating setup"
-
-python3 "$SCRIPT_DIR/validate.py"
 
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  Setup complete! Run a showcase:${NC}"
+echo -e "${GREEN}  Scaleway Medical AI Lab - Workshop Ready${NC}"
 echo ""
-echo -e "  ${CYAN}cd 01_ambient_scribe  && uvicorn main:app --reload --port 8000${NC}"
-echo -e "  ${CYAN}cd 02_document_intelligence && uvicorn main:app --reload --port 8001${NC}"
-echo -e "  ${CYAN}cd 03_research_agent  && uvicorn main:app --reload --port 8002${NC}"
+echo -e "  ${CYAN}Landing page:${NC}              ${BASE_URL}/"
+echo -e "  ${CYAN}Consultation Assistant:${NC}     ${BASE_URL}/consultation-assistant/"
+echo -e "  ${CYAN}Document Intelligence:${NC}      ${BASE_URL}/document-intelligence/"
+echo -e "  ${CYAN}Research Agent:${NC}             ${BASE_URL}/research-agent/"
+echo ""
+echo -e "  All services run inside a VPC. Only the Load Balancer is public."
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

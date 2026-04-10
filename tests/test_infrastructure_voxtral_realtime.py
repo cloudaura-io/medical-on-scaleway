@@ -1,4 +1,4 @@
-"""Tests for infrastructure — Voxtral Realtime GPU instance resources."""
+"""Tests for infrastructure - Voxtral Realtime GPU instance resources."""
 
 from __future__ import annotations
 

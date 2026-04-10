@@ -13,12 +13,12 @@ select = [
     "SIM", # flake8-simplify
 ]
 ignore = [
-    "E501", # line too long — formatter handles this
+    "E501", # line too long - formatter handles this
 ]
 
 [tool.ruff.lint.per-file-ignores]
 # Showcase apps must manipulate sys.path before importing src modules
-"01_ambient_scribe/main.py" = ["E402"]
+"01_consultation_assistant/main.py" = ["E402"]
 "02_document_intelligence/main.py" = ["E402"]
 "03_research_agent/main.py" = ["E402"]
 # Test files and scripts that need sys.path setup before imports

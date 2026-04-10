@@ -1,4 +1,4 @@
-"""Tests for src/config.py — configuration validation utilities."""
+"""Tests for src/config.py - configuration validation utilities."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ class TestValidateConfig:
         """The EnvironmentError message must include every missing var name."""
         from src.config import validate_config
 
-        # Set only some vars — leave SCW_SECRET_KEY, DATABASE_URL, SCW_S3_BUCKET missing
+        # Set only some vars - leave SCW_SECRET_KEY, DATABASE_URL, SCW_S3_BUCKET missing
         partial_env = {
             "SCW_GENERATIVE_API_URL": "https://example.com",
             "SCW_INFERENCE_ENDPOINT": "https://example.com",

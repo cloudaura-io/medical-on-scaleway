@@ -1,4 +1,4 @@
-"""Tests for src/transcription_realtime.py — Voxtral Realtime streaming."""
+"""Tests for src/transcription_realtime.py - Voxtral Realtime streaming."""
 
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 """
-Showcase 3 — Cross-domain Medical Research Agent
+Showcase 3 - Cross-domain Medical Research Agent
 =================================================
 
 FastAPI backend that:
@@ -19,7 +19,7 @@ import asyncio
 import logging
 
 # ---------------------------------------------------------------------------
-# Project path setup — must happen before any `src.*` import
+# Project path setup - must happen before any `src.*` import
 # ---------------------------------------------------------------------------
 import sys
 import time
@@ -46,7 +46,7 @@ from src.sse_utils import format_sse_event, safe_streaming_wrapper
 from src.verification import verify_claims
 
 # ---------------------------------------------------------------------------
-# Logging — must be configured before anything else logs
+# Logging - must be configured before anything else logs
 # ---------------------------------------------------------------------------
 configure_logging()
 
@@ -159,7 +159,7 @@ TOOL_HANDLERS = {
 
 STATIC_DIR = Path(__file__).parent / "static"
 
-app = create_app(title="Showcase 3 — Research Agent", version="0.1.0")
+app = create_app(title="Showcase 3 - Research Agent", version="0.1.0")
 mount_static(app, STATIC_DIR)
 create_index_route(app, STATIC_DIR)
 create_health_endpoint(

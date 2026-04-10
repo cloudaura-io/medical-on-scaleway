@@ -3,7 +3,7 @@ Shared FastAPI application factory and setup utilities.
 
 Provides reusable helpers so each showcase app can initialise
 FastAPI with consistent CORS, static file mounting, health
-checks, and index routes — without duplicating boilerplate.
+checks, and index routes - without duplicating boilerplate.
 """
 
 from __future__ import annotations

@@ -1,0 +1,733 @@
+/* =========================================================================
+   Consultation Assistant - Frontend Controller
+   Scaleway Medical AI Lab - Premium Scaleway Brand Edition
+   ========================================================================= */
+
+(function () {
+  'use strict';
+
+  // -----------------------------------------------------------------------
+  // DOM references
+  // -----------------------------------------------------------------------
+
+  const $ = (sel) => document.querySelector(sel);
+  const btnUploadLabel    = $('#btnUploadLabel');
+  const audioFileInput    = $('#audioFileInput');
+  const btnMicRecord      = $('#btnMicRecord');
+  const micBtnLabel       = $('#micBtnLabel');
+  const modeToggle        = $('#modeToggle');
+  const btnReset          = $('#btnReset');
+  const recordingInd      = $('#recordingIndicator');
+  const recordingLabel    = $('#recordingLabel');
+  const transcriptBadge   = $('#transcriptBadge');
+  const transcriptBody    = $('#transcriptBody');
+  const transcriptText    = $('#transcriptText');
+  const transcriptHolder  = $('#transcriptPlaceholder');
+  const aiProcessing      = $('#aiProcessing');
+  const clinicalBadge     = $('#clinicalBadge');
+  const clinicalCards     = $('#clinicalCards');
+  const clinicalHolder    = $('#clinicalPlaceholder');
+  const sparkleContainer  = $('#sparkleContainer');
+  const waveform          = $('#waveform');
+  const waveformBars      = $('#waveformBars');
+  const statusTranscript  = $('#statusTranscription');
+  const statusExtraction  = $('#statusExtraction');
+  const statusValidation  = $('#statusValidation');
+  const statusValText     = $('#statusValidationText');
+
+  // -----------------------------------------------------------------------
+  // State
+  // -----------------------------------------------------------------------
+
+  let timerStart    = null;
+  let timerInterval = null;
+  let isProcessing  = false;
+  let sparkleInterval = null;
+  let currentMode   = 'upload'; // 'upload' | 'mic'
+  let micStream     = null;
+  let audioContext   = null;
+  let scriptNode    = null;
+  let ws            = null;
+  let isRecording   = false;
+
+  // -----------------------------------------------------------------------
+  // Waveform bars setup
+  // -----------------------------------------------------------------------
+
+  function initWaveform() {
+    const barCount = 80;
+    waveformBars.innerHTML = '';
+    for (let i = 0; i < barCount; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'waveform__bar';
+      bar.style.setProperty('--bar-height', `${6 + Math.random() * 30}px`);
+      bar.style.setProperty('--delay', `${Math.random() * 600}ms`);
+      waveformBars.appendChild(bar);
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // AI processing steps (shown during transcription/extraction)
+  // -----------------------------------------------------------------------
+
+  const TRANSCRIBE_STEPS = [
+    'Receiving audio...',
+    'Running speech-to-text (Voxtral)...',
+    'Identifying speakers...',
+    'Diarizing transcript...',
+  ];
+
+  const EXTRACT_STEPS = [
+    'Analyzing transcript...',
+    'Identifying symptoms and conditions...',
+    'Checking medications...',
+    'Extracting vitals...',
+    'Generating clinical assessment...',
+    'Structuring clinical note (Mistral)...',
+  ];
+
+  let stepInterval = null;
+
+  // Auto-scroll transcript and clinical panels to bottom
+  function autoScroll(el) {
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  function showSteps(steps, intervalMs) {
+    clearSteps();
+    const list = document.getElementById('aiStepsList');
+    list.innerHTML = '';
+    let idx = 0;
+    function addNext() {
+      if (idx >= steps.length) { clearInterval(stepInterval); stepInterval = null; return; }
+      // mark previous as done
+      const prev = list.querySelector('.ai-step--active');
+      if (prev) { prev.classList.remove('ai-step--active'); prev.classList.add('ai-step--done'); }
+      const el = document.createElement('div');
+      el.className = 'ai-step ai-step--active';
+      el.textContent = steps[idx];
+      el.style.animationDelay = '0s';
+      list.appendChild(el);
+      list.scrollTop = list.scrollHeight;
+      idx++;
+    }
+    addNext();
+    stepInterval = setInterval(addNext, intervalMs);
+  }
+
+  function clearSteps() {
+    if (stepInterval) { clearInterval(stepInterval); stepInterval = null; }
+  }
+
+  // Keep old function names for compatibility
+  function startSparkles() {}
+  function stopSparkles() { clearSteps(); }
+
+  // -----------------------------------------------------------------------
+  // Timer
+  // -----------------------------------------------------------------------
+
+  function startTimer() {
+    timerStart = performance.now();
+    timerInterval = setInterval(() => {
+      const elapsed = ((performance.now() - timerStart) / 1000).toFixed(1);
+      statusTranscript.textContent = `${elapsed}s`;
+    }, 100);
+  }
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // State transitions
+  // -----------------------------------------------------------------------
+
+  function setIdle() {
+    isProcessing = false;
+    btnUploadLabel.classList.remove('is-disabled');
+    audioFileInput.disabled = false;
+    recordingInd.className = 'recording-indicator';
+    recordingLabel.textContent = 'Idle';
+    transcriptBadge.className = 'panel__badge';
+    transcriptBadge.textContent = 'waiting';
+    clinicalBadge.className = 'panel__badge';
+    clinicalBadge.textContent = 'pending';
+    statusValText.textContent = 'Ready';
+    statusValidation.className = 'status-bar__value status-bar__value--status';
+    waveform.classList.remove('is-active');
+    aiProcessing.classList.remove('is-visible');
+    stopSparkles();
+  }
+
+  function setTranscribing() {
+    isProcessing = true;
+    btnUploadLabel.classList.add('is-disabled');
+    audioFileInput.disabled = true;
+    recordingInd.className = 'recording-indicator is-active';
+    recordingLabel.textContent = 'Transcribing';
+    transcriptBadge.className = 'panel__badge is-active';
+    transcriptBadge.textContent = 'processing';
+    clinicalBadge.className = 'panel__badge';
+    clinicalBadge.textContent = 'pending';
+    statusValText.textContent = 'Transcribing';
+    statusValidation.className = 'status-bar__value status-bar__value--status is-active';
+    waveform.classList.add('is-active');
+
+    transcriptHolder.style.display = 'none';
+    aiProcessing.classList.add('is-visible');
+    transcriptText.classList.remove('is-visible');
+    transcriptText.innerHTML = '';
+    clinicalHolder.style.display = '';
+    clinicalCards.innerHTML = '';
+    showSteps(TRANSCRIBE_STEPS, 2000);
+  }
+
+  function setTranscriptReady() {
+    aiProcessing.classList.remove('is-visible');
+    transcriptText.classList.add('is-visible');
+  }
+
+  function setExtracting() {
+    recordingInd.className = 'recording-indicator is-active';
+    recordingLabel.textContent = 'Extracting';
+    transcriptBadge.className = 'panel__badge is-complete';
+    transcriptBadge.textContent = 'complete';
+    clinicalBadge.className = 'panel__badge is-active';
+    clinicalBadge.textContent = 'processing';
+    statusValText.textContent = 'Extracting';
+    waveform.classList.remove('is-active');
+
+    clinicalHolder.style.display = 'none';
+    showLoadingCards();
+    showSteps(EXTRACT_STEPS, 1500);
+  }
+
+  function setComplete(processingTime) {
+    isProcessing = false;
+    btnUploadLabel.classList.remove('is-disabled');
+    audioFileInput.disabled = false;
+    recordingInd.className = 'recording-indicator is-complete';
+    recordingLabel.textContent = 'Complete';
+    clinicalBadge.className = 'panel__badge is-complete';
+    clinicalBadge.textContent = 'extracted';
+    statusValText.textContent = 'Validated';
+    statusValidation.className = 'status-bar__value status-bar__value--status is-complete';
+    stopSparkles();
+    if (processingTime) {
+      statusExtraction.textContent = `${processingTime}s`;
+    }
+  }
+
+  function setError(message) {
+    isProcessing = false;
+    btnUploadLabel.classList.remove('is-disabled');
+    audioFileInput.disabled = false;
+    recordingInd.className = 'recording-indicator';
+    recordingLabel.textContent = 'Error';
+    statusValText.textContent = message || 'Error';
+    statusValidation.className = 'status-bar__value status-bar__value--status is-error';
+    waveform.classList.remove('is-active');
+    aiProcessing.classList.remove('is-visible');
+    stopSparkles();
+  }
+
+  // -----------------------------------------------------------------------
+  // Loading placeholder cards
+  // -----------------------------------------------------------------------
+
+  function showLoadingCards() {
+    clinicalCards.innerHTML = '';
+    const sections = ['Patient', 'Symptoms', 'Medications', 'Vitals', 'Assessment', 'Plan'];
+    sections.forEach((label, i) => {
+      const card = document.createElement('div');
+      card.className = 'clinical-card clinical-card--loading';
+      card.style.animationDelay = `${i * 120}ms`;
+      card.innerHTML = `
+        <div class="clinical-card__header">
+          <span class="clinical-card__label">${label}</span>
+        </div>
+        <div class="clinical-card__content">
+          <div class="shimmer-line" style="width: ${70 + Math.random() * 30}%"></div>
+          <div class="shimmer-line" style="width: ${50 + Math.random() * 40}%"></div>
+          <div class="shimmer-line" style="width: ${40 + Math.random() * 30}%"></div>
+        </div>
+      `;
+      clinicalCards.appendChild(card);
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // Render clinical note
+  // -----------------------------------------------------------------------
+
+  const SECTION_ICONS = {
+    patient: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    symptoms: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+    medications: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+    vitals: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+    assessment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    plan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  };
+
+  const VITAL_LABELS = {
+    blood_pressure:    'Blood Pressure',
+    heart_rate:        'Heart Rate',
+    temperature:       'Temperature',
+    respiratory_rate:  'Respiratory Rate',
+    oxygen_saturation: 'SpO\u2082',
+  };
+
+  function formatVitalValue(key, val) {
+    if (val === null || val === undefined) return '--';
+    if (key === 'heart_rate')        return `${val} bpm`;
+    if (key === 'temperature')       return `${val} \u00B0F`;
+    if (key === 'respiratory_rate')  return `${val} /min`;
+    if (key === 'oxygen_saturation') return `${val}%`;
+    return String(val);
+  }
+
+  function renderClinicalNote(data) {
+    clinicalCards.innerHTML = '';
+    const sections = [];
+
+    // Patient
+    const patientLines = [];
+    if (data.patient_name) patientLines.push(`<strong>${esc(data.patient_name)}</strong>`);
+    if (data.age) patientLines.push(`Age ${data.age}`);
+    if (data.sex) patientLines.push(capitalize(data.sex));
+    if (data.chief_complaint) patientLines.push(`<br/><em>&ldquo;${esc(data.chief_complaint)}&rdquo;</em>`);
+    sections.push({ key: 'patient', label: 'Patient', html: patientLines.join(' &middot; ') });
+
+    // Symptoms
+    if (data.symptoms && data.symptoms.length) {
+      const items = data.symptoms.map((s) => `<li>${esc(s)}</li>`).join('');
+      sections.push({ key: 'symptoms', label: 'Symptoms', html: `<ul>${items}</ul>` });
+    }
+
+    // Medications
+    if (data.medications && data.medications.length) {
+      const items = data.medications.map((m) => `<li>${esc(m)}</li>`).join('');
+      sections.push({ key: 'medications', label: 'Medications', html: `<ul>${items}</ul>` });
+    }
+
+    // Vitals
+    if (data.vitals) {
+      const items = Object.entries(data.vitals)
+        .filter(([, v]) => v !== null && v !== undefined)
+        .map(([k, v]) => `
+          <div class="vital-item">
+            <span class="vital-item__label">${VITAL_LABELS[k] || k}</span>
+            <span class="vital-item__value">${formatVitalValue(k, v)}</span>
+          </div>
+        `)
+        .join('');
+      if (items) {
+        sections.push({ key: 'vitals', label: 'Vitals', html: `<div class="vital-grid">${items}</div>` });
+      }
+    }
+
+    // Assessment
+    if (data.assessment) {
+      sections.push({ key: 'assessment', label: 'Assessment', html: `<p>${esc(data.assessment)}</p>` });
+    }
+
+    // Plan
+    if (data.plan && data.plan.length) {
+      const items = data.plan.map((p, i) => `<li><strong>${i + 1}.</strong> ${esc(p)}</li>`).join('');
+      sections.push({ key: 'plan', label: 'Plan', html: `<ul>${items}</ul>` });
+    }
+
+    sections.forEach((section, i) => {
+      const card = document.createElement('div');
+      card.className = 'clinical-card';
+      card.style.animationDelay = `${i * 200}ms`;
+      card.innerHTML = `
+        <div class="clinical-card__header">
+          <span class="clinical-card__icon">${SECTION_ICONS[section.key] || ''}</span>
+          <span class="clinical-card__label">${section.label}</span>
+        </div>
+        <div class="clinical-card__content">${section.html}</div>
+      `;
+      clinicalCards.appendChild(card);
+    });
+
+    // Stop sparkles shortly after cards render
+    setTimeout(() => stopSparkles(), 1500);
+  }
+
+  // -----------------------------------------------------------------------
+  // Upload and process audio file
+  // -----------------------------------------------------------------------
+
+  async function handleFileUpload(file) {
+    if (isProcessing) return;
+
+    resetUI();
+    setTranscribing();
+    startTimer();
+
+    let wordIndex = 0;
+
+    // Token drip queue - feeds tokens into the DOM with a typewriter effect
+    const tokenQueue = [];
+    let dripping = false;
+    let allQueued = false;
+    let resolveDrip = null;
+    const dripPromise = new Promise((r) => { resolveDrip = r; });
+    const TOKEN_INTERVAL_MS = 30;
+
+    function drainQueue() {
+      if (dripping) return;
+      dripping = true;
+
+      function step() {
+        if (tokenQueue.length === 0) {
+          dripping = false;
+          if (allQueued) {
+            resolveDrip();
+          }
+          return;
+        }
+
+        const text = tokenQueue.shift();
+
+        // On first token, hide spinner and show transcript area
+        if (wordIndex === 0) {
+          aiProcessing.classList.remove('is-visible');
+          transcriptText.classList.add('is-visible');
+        }
+
+        // If the token contains a newline, render <br> elements instead of a span
+        if (/\n/.test(text)) {
+          const nlCount = (text.match(/\n/g) || []).length;
+          for (let i = 0; i < nlCount; i++) {
+            transcriptText.appendChild(document.createElement('br'));
+          }
+        } else {
+          const span = document.createElement('span');
+          span.className = 'word';
+          span.textContent = text;
+          span.dataset.index = wordIndex++;
+          transcriptText.appendChild(span);
+          autoScroll(transcriptBody);
+
+          span.classList.add('word-glow');
+          span.addEventListener('animationend', () => {
+            span.classList.remove('word-glow');
+          });
+        }
+
+        transcriptBody.scrollTop = transcriptBody.scrollHeight;
+
+        setTimeout(step, TOKEN_INTERVAL_MS);
+      }
+
+      step();
+    }
+
+    try {
+      // Step 1 - Transcribe audio via diarized endpoint
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const transcribeRes = await fetch('api/transcribe', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!transcribeRes.ok) {
+        const err = await transcribeRes.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || `Transcription failed (${transcribeRes.status})`);
+      }
+
+      const transcribeData = await transcribeRes.json();
+      const transcript = transcribeData.transcript;
+
+      stopTimer();
+
+      // Split transcript into tokens (preserving whitespace) and feed into drip queue
+      const tokens = transcript.split(/(\s+)/);
+      for (const token of tokens) {
+        if (token) {
+          tokenQueue.push(token);
+        }
+      }
+      allQueued = true;
+      drainQueue();
+
+      // Wait for the drip queue to finish rendering all tokens
+      await dripPromise;
+      setTranscriptReady();
+
+      // Step 2 - Extract clinical note
+      setExtracting();
+
+      const extractRes = await fetch('api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+      });
+
+      if (!extractRes.ok) {
+        const err = await extractRes.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || `Extraction failed (${extractRes.status})`);
+      }
+
+      const extractData = await extractRes.json();
+      renderClinicalNote(extractData.clinical_note);
+      setComplete(extractData.processing_time_s);
+    } catch (err) {
+      stopTimer();
+      setError(err.message || 'Processing failed');
+      console.error('Pipeline error:', err);
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Mode toggle
+  // -----------------------------------------------------------------------
+
+  function setMode(mode) {
+    currentMode = mode;
+    modeToggle.querySelectorAll('.mode-toggle__btn').forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.mode === mode);
+    });
+    btnUploadLabel.style.display = mode === 'upload' ? '' : 'none';
+    audioFileInput.style.display = 'none';
+    btnMicRecord.style.display = mode === 'mic' ? '' : 'none';
+  }
+
+  // -----------------------------------------------------------------------
+  // WebSocket live mic transcription
+  // -----------------------------------------------------------------------
+
+  async function startMicRecording() {
+    if (isProcessing) return;
+
+    resetUI();
+    setTranscribing();
+    startTimer();
+    isRecording = true;
+    micBtnLabel.textContent = 'Stop Recording';
+    btnMicRecord.classList.add('is-recording');
+
+    let wordIndex = 0;
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Live microphone requires HTTPS. Use "Upload File" mode, or access this page via HTTPS.');
+      }
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true },
+      });
+
+      audioContext = new AudioContext({ sampleRate: 16000 });
+      const source = audioContext.createMediaStreamSource(micStream);
+
+      // Use ScriptProcessorNode for PCM access (AudioWorklet is more complex)
+      scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+
+      // Open WebSocket
+      const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const basePath = location.pathname.replace(/\/$/, '');
+      ws = new WebSocket(`${wsProtocol}//${location.host}${basePath}/ws/transcribe`);
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'delta') {
+          if (wordIndex === 0) {
+            aiProcessing.classList.remove('is-visible');
+            transcriptText.classList.add('is-visible');
+          }
+          const span = document.createElement('span');
+          span.className = 'word word-glow';
+          span.textContent = msg.text;
+          span.dataset.index = wordIndex++;
+          transcriptText.appendChild(span);
+          autoScroll(transcriptBody);
+          span.addEventListener('animationend', () => span.classList.remove('word-glow'));
+          transcriptBody.scrollTop = transcriptBody.scrollHeight;
+        } else if (msg.type === 'diarized') {
+          // Replace raw transcript with diarized version
+          transcriptText.innerHTML = '';
+          wordIndex = 0;
+          const tokens = msg.text.split(/(\s+)/);
+          for (const token of tokens) {
+            if (token && /\n/.test(token)) {
+              transcriptText.appendChild(document.createElement('br'));
+            } else if (token) {
+              const span = document.createElement('span');
+              span.className = 'word';
+              span.textContent = token;
+              span.dataset.index = wordIndex++;
+              transcriptText.appendChild(span);
+            }
+          }
+          autoScroll(transcriptBody);
+          setTranscriptReady();
+          transcriptBadge.textContent = 'diarized';
+
+          // Trigger extraction
+          runExtraction(msg.text);
+        } else if (msg.type === 'done') {
+          stopTimer();
+          if (!transcriptText.textContent.trim()) {
+            setComplete();
+          }
+        } else if (msg.type === 'error') {
+          setError(msg.message || 'Transcription error');
+        }
+      };
+
+      ws.onclose = () => {
+        cleanupMic();
+      };
+
+      ws.onerror = () => {
+        setError('WebSocket connection failed');
+        cleanupMic();
+      };
+
+      // Wait for WebSocket to open before streaming
+      await new Promise((resolve, reject) => {
+        ws.onopen = resolve;
+        ws.onerror = reject;
+      });
+
+      // Stream audio via ScriptProcessorNode
+      scriptNode.onaudioprocess = (e) => {
+        if (!isRecording || !ws || ws.readyState !== WebSocket.OPEN) return;
+        const float32 = e.inputBuffer.getChannelData(0);
+        const pcm16 = new Int16Array(float32.length);
+        for (let i = 0; i < float32.length; i++) {
+          pcm16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
+        }
+        ws.send(pcm16.buffer);
+      };
+
+      source.connect(scriptNode);
+      scriptNode.connect(audioContext.destination);
+
+    } catch (err) {
+      stopTimer();
+      setError(err.message || 'Microphone access denied');
+      isRecording = false;
+      micBtnLabel.textContent = 'Start Recording';
+      btnMicRecord.classList.remove('is-recording');
+      cleanupMic();
+    }
+  }
+
+  function stopMicRecording() {
+    isRecording = false;
+    stopTimer();
+    micBtnLabel.textContent = 'Start Recording';
+    btnMicRecord.classList.remove('is-recording');
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'stop' }));
+    }
+
+    cleanupMic();
+  }
+
+  function cleanupMic() {
+    if (scriptNode) { scriptNode.disconnect(); scriptNode = null; }
+    if (audioContext) { audioContext.close(); audioContext = null; }
+    if (micStream) { micStream.getTracks().forEach((t) => t.stop()); micStream = null; }
+  }
+
+  async function runExtraction(transcript) {
+    setExtracting();
+    try {
+      const res = await fetch('api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+      });
+      if (!res.ok) throw new Error('Extraction failed');
+      const data = await res.json();
+      renderClinicalNote(data.clinical_note);
+      setComplete(data.processing_time_s);
+    } catch (err) {
+      setError(err.message || 'Extraction failed');
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Reset
+  // -----------------------------------------------------------------------
+
+  function resetUI() {
+    stopTimer();
+    setIdle();
+    transcriptHolder.style.display = '';
+    transcriptText.classList.remove('is-visible');
+    transcriptText.innerHTML = '';
+    clinicalHolder.style.display = '';
+    clinicalCards.innerHTML = '';
+    statusTranscript.textContent = '--';
+    statusExtraction.textContent = '--';
+    // Reset the file input so the same file can be re-uploaded
+    audioFileInput.value = '';
+  }
+
+  // -----------------------------------------------------------------------
+  // Helpers
+  // -----------------------------------------------------------------------
+
+  function esc(str) {
+    const el = document.createElement('span');
+    el.textContent = str;
+    return el.innerHTML;
+  }
+
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  // -----------------------------------------------------------------------
+  // Init
+  // -----------------------------------------------------------------------
+
+  function init() {
+    initWaveform();
+
+    // Mode toggle
+    modeToggle.addEventListener('click', (e) => {
+      const btn = e.target.closest('.mode-toggle__btn');
+      if (btn && !isProcessing) setMode(btn.dataset.mode);
+    });
+
+    // File upload
+    audioFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleFileUpload(file);
+    });
+
+    // Mic record toggle
+    btnMicRecord.addEventListener('click', () => {
+      if (isRecording) {
+        stopMicRecording();
+      } else {
+        startMicRecording();
+      }
+    });
+
+    btnReset.addEventListener('click', () => {
+      if (isRecording) stopMicRecording();
+      resetUI();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

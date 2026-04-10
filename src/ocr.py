@@ -27,7 +27,7 @@ image exactly as it appears.  Preserve:
 - Any handwritten text you can reasonably decipher (flag uncertain words
   with [unclear]).
 
-Return ONLY the extracted text — no commentary.
+Return ONLY the extracted text - no commentary.
 """
 
 # ---------------------------------------------------------------------------

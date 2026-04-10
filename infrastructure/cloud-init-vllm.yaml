@@ -1,13 +1,7 @@
 #cloud-config
-# Scaleway Medical AI Lab — Voxtral Realtime vLLM Server
+# Scaleway Medical AI Lab - Voxtral Realtime vLLM Server
 # Installs Docker + NVIDIA Container Toolkit, pulls and runs vLLM
 # with the Voxtral Mini 4B Realtime model on the L4 GPU.
-
-package_update: true
-
-packages:
-  - curl
-  - jq
 
 write_files:
   - path: /opt/vllm/docker-compose.yaml
@@ -15,7 +9,7 @@ write_files:
     content: |
       services:
         vllm:
-          image: vllm/vllm-openai:latest
+          image: vllm/vllm-openai:v0.8.3
           runtime: nvidia
           ports:
             - "8000:8000"
@@ -59,10 +53,12 @@ write_files:
       cd /opt/vllm
       echo "Starting vLLM with Voxtral Realtime..."
       docker compose up -d
-      echo "vLLM starting — model download may take 10-15 minutes on first boot."
+      echo "vLLM starting - model download may take 10-15 minutes on first boot."
       echo "Check status: docker compose -f /opt/vllm/docker-compose.yaml logs -f"
 
 runcmd:
+  # Wait for network (private NIC attaches after boot)
+  - for i in $(seq 1 30); do curl -sf --max-time 3 https://get.docker.com > /dev/null 2>&1 && break; sleep 5; done
   # NVIDIA Container Toolkit is pre-installed on gpu_os images,
   # but ensure Docker can use it
   - systemctl enable docker
