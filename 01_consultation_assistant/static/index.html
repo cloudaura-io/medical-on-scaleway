@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consultation Assistant - Scaleway Medical AI Lab</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="static/style.css" />
+</head>
+<body>
+  <!-- ===== Header ===== -->
+  <header class="header">
+    <div class="header__left">
+      <div class="header__logos">
+        <img src="static/scaleway-logo.svg" alt="Scaleway" class="logo-scaleway">
+        <img src="static/cloudaura-logo.png" alt="cloudaura.io" class="logo-cloudaura">
+      </div>
+      <div class="recording-indicator" id="recordingIndicator">
+        <span class="recording-indicator__dot"></span>
+        <span class="recording-indicator__label" id="recordingLabel">Idle</span>
+      </div>
+    </div>
+    <div class="header__center">
+      <h1 class="header__title">CONSULTATION ASSISTANT</h1>
+    </div>
+    <div class="header__right">
+      <!-- Mode toggle -->
+      <div class="mode-toggle" id="modeToggle">
+        <button class="mode-toggle__btn is-active" data-mode="upload">Upload File</button>
+        <button class="mode-toggle__btn" data-mode="mic">Live Mic</button>
+      </div>
+      <!-- Upload mode controls -->
+      <label class="btn btn--primary" id="btnUploadLabel" for="audioFileInput">
+        <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Audio
+      </label>
+      <input type="file" id="audioFileInput" accept="audio/*" style="display:none" />
+      <!-- Mic mode controls -->
+      <button class="btn btn--primary" id="btnMicRecord" style="display:none">
+        <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <span id="micBtnLabel">Start Recording</span>
+      </button>
+      <button class="btn btn--ghost" id="btnReset">Reset</button>
+      <a class="btn btn--ghost" id="homeLink">Home</a>
+    </div>
+  </header>
+
+  <!-- ===== Main Content ===== -->
+  <main class="main-grid">
+    <!-- LEFT - Live Transcript -->
+    <section class="panel panel--transcript">
+      <div class="panel__header">
+        <h2 class="panel__title">Live Transcript</h2>
+        <span class="panel__badge" id="transcriptBadge">waiting</span>
+      </div>
+      <div class="panel__body" id="transcriptBody">
+        <p class="panel__placeholder" id="transcriptPlaceholder">
+          Upload an audio file to transcribe a doctor-patient encounter.
+        </p>
+        <!-- AI Processing Steps -->
+        <div class="ai-steps" id="aiProcessing">
+          <div class="ai-steps__list" id="aiStepsList"></div>
+        </div>
+        <div class="transcript-text" id="transcriptText"></div>
+      </div>
+      <div class="waveform" id="waveform">
+        <div class="waveform__bars" id="waveformBars"></div>
+      </div>
+    </section>
+
+    <!-- Purple Divider -->
+    <div class="panel-divider"></div>
+
+    <!-- RIGHT - Clinical Note -->
+    <section class="panel panel--clinical">
+      <div class="panel__header">
+        <h2 class="panel__title">Clinical Note</h2>
+        <span class="panel__badge" id="clinicalBadge">pending</span>
+      </div>
+      <div class="panel__body" id="clinicalBody">
+        <p class="panel__placeholder" id="clinicalPlaceholder">
+          Structured extraction will appear here once the transcript completes.
+        </p>
+        <!-- Sparkle particle container -->
+        <div class="sparkle-container" id="sparkleContainer"></div>
+        <div class="clinical-cards" id="clinicalCards"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Status Bar ===== -->
+  <footer class="status-bar">
+    <div class="status-bar__gradient"></div>
+    <div class="status-bar__content">
+      <div class="status-bar__segment">
+        <span class="status-bar__label">Model</span>
+        <span class="status-bar__value" id="statusModel">voxtral-small</span>
+      </div>
+      <div class="status-bar__segment">
+        <span class="status-bar__label">Transcription</span>
+        <span class="status-bar__value" id="statusTranscription">--</span>
+      </div>
+      <div class="status-bar__segment">
+        <span class="status-bar__label">Extraction</span>
+        <span class="status-bar__value" id="statusExtraction">--</span>
+      </div>
+      <div class="status-bar__segment status-bar__segment--right">
+        <span class="status-bar__label">Status</span>
+        <span class="status-bar__value status-bar__value--status" id="statusValidation">
+          <svg class="checkmark-icon" id="checkmarkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span id="statusValidationText">Ready</span>
+        </span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="static/app.js"></script>
+  <script>document.getElementById('homeLink').href='/';</script>
+</body>
+</html>

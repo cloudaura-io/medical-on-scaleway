@@ -2,9 +2,9 @@
 Shared logging configuration for all showcase applications.
 
 Provides:
-- ``configure_logging()`` — sets a consistent log format and level
+- ``configure_logging()`` - sets a consistent log format and level
   across all modules.
-- ``timed_operation`` — a decorator that logs elapsed wall-clock time
+- ``timed_operation`` - a decorator that logs elapsed wall-clock time
   for both sync and async functions, replacing ad-hoc
   ``time.perf_counter()`` patterns.
 """
@@ -43,7 +43,7 @@ def configure_logging(
     writing to ``stderr`` with a standard format that includes
     timestamps and module names.
 
-    Safe to call multiple times — subsequent calls update the level
+    Safe to call multiple times - subsequent calls update the level
     but do not duplicate handlers.
 
     Args:

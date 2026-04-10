@@ -1,6 +1,6 @@
 /* ===================================================================
-   Showcase 3 — Cross-domain Medical Research Agent
-   Frontend controller — Scaleway Brand Redesign
+   Showcase 3 - Cross-domain Medical Research Agent
+   Frontend controller - Scaleway Brand Redesign
    =================================================================== */
 
 // ---------------------------------------------------------------------------
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadSampleQueries() {
     try {
-        const res = await fetch('/api/sample-queries');
+        const res = await fetch('api/sample-queries');
         const queries = await res.json();
 
         sampleContainer.innerHTML = '';
@@ -128,7 +128,7 @@ async function loadSampleQueries() {
 
 async function loadDomains() {
     try {
-        const res = await fetch('/api/domains');
+        const res = await fetch('api/domains');
         const domains = await res.json();
 
         domains.forEach((d) => {
@@ -157,7 +157,7 @@ function runResearch(query) {
     setRunning(true);
 
     // POST to /api/research and read SSE stream
-    fetch('/api/research', {
+    fetch('api/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),

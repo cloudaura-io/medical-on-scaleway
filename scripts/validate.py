@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 
 load_dotenv(PROJECT_ROOT / ".env")
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 RED = "\033[0;31m"
 GREEN = "\033[0;32m"
@@ -58,9 +58,9 @@ def check(name: str):
     return decorator
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Checks
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 
 @check("Generative APIs (chat)")
@@ -159,7 +159,7 @@ def check_knowledge_chunks():
 
     count = conn.execute("SELECT COUNT(*) FROM document_chunks").fetchone()[0]
     if count == 0:
-        raise RuntimeError("No chunks loaded — run load-knowledge-base.py")
+        raise RuntimeError("No chunks loaded - run load-knowledge-base.py")
 
     domains = conn.execute("SELECT domain, COUNT(*) FROM document_chunks GROUP BY domain ORDER BY domain").fetchall()
     domain_str = ", ".join(f"{d[0]}({d[1]})" for d in domains)
@@ -178,9 +178,9 @@ def check_s3():
     return f"bucket '{bucket}' accessible ({count} objects)"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Main
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 
 def main():
@@ -206,7 +206,7 @@ def main():
     passed = sum(1 for _, ok, _ in results if ok)
     failed = sum(1 for _, ok, _ in results if not ok)
 
-    print(f"\n{'─' * 60}")
+    print(f"\n{'-' * 60}")
     print(f"  {GREEN}{passed} passed{NC}", end="")
     if failed:
         print(f"  {RED}{failed} failed{NC}", end="")

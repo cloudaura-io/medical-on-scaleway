@@ -1,4 +1,4 @@
-# Showcase 3 — Cross-domain Medical Research Agent
+# Showcase 3 - Cross-domain Medical Research Agent
 
 Tool-calling agent that searches across pharmacology, cardiology, and clinical trial knowledge domains, then verifies each claim using Chain-of-Verification (CoVe).
 

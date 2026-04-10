@@ -1,7 +1,7 @@
 """Tests verifying sse-client.js lives in the shared static directory.
 
 These tests ensure that the SSE client utility has been moved from the
-Doctor Assistant showcase to the shared ``static/shared/`` directory at
+Consultation Assistant showcase to the shared ``static/shared/`` directory at
 the repository root, and that the old location no longer contains a copy.
 """
 
@@ -22,7 +22,7 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 # Ensure the doctor assistant directory is on sys.path
-_app_dir = str(Path(__file__).resolve().parents[1] / "01_ambient_scribe")
+_app_dir = str(Path(__file__).resolve().parents[1] / "01_consultation_assistant")
 if _app_dir not in sys.path:
     sys.path.insert(0, _app_dir)
 
@@ -84,9 +84,9 @@ class TestSharedSSEClientFile:
         assert "SSEClient" in content
         assert "parseSSELines" in content
 
-    def test_old_sse_client_removed_from_ambient_scribe(self) -> None:
-        """01_ambient_scribe/static/sse-client.js must no longer exist."""
-        old_path = PROJECT_ROOT / "01_ambient_scribe" / "static" / "sse-client.js"
+    def test_old_sse_client_removed_from_consultation_assistant(self) -> None:
+        """01_consultation_assistant/static/sse-client.js must no longer exist."""
+        old_path = PROJECT_ROOT / "01_consultation_assistant" / "static" / "sse-client.js"
         assert not old_path.exists(), f"Old SSE client still exists at {old_path}; it should be removed"
 
 

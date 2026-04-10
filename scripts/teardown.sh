@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ################################################################################
-# Scaleway Medical AI Lab — Infrastructure Teardown
+# Scaleway Medical AI Lab - Infrastructure Teardown
 #
 # Destroys all OpenTofu-provisioned resources:
 #   - Managed PostgreSQL instance
@@ -37,7 +37,7 @@ done
 
 if [ ! -f "$INFRA_DIR/terraform.tfvars" ]; then
     echo -e "${RED}Error: infrastructure/terraform.tfvars not found.${NC}"
-    echo "Nothing to destroy — infrastructure was never provisioned."
+    echo "Nothing to destroy - infrastructure was never provisioned."
     exit 1
 fi
 

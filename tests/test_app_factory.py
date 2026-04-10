@@ -1,4 +1,4 @@
-"""Tests for src/app_factory.py — shared FastAPI setup utilities."""
+"""Tests for src/app_factory.py - shared FastAPI setup utilities."""
 
 from __future__ import annotations
 

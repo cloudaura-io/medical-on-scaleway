@@ -26,7 +26,7 @@ _DIARIZATION_PROMPT = (
     "Transcribe the following audio recording of a doctor-patient conversation. "
     "Label each speaker's turns with 'Doctor:' or 'Patient:' at the start of "
     "each new speaker turn. Preserve the original language of the conversation. "
-    "Do not add any commentary or summary — output only the diarized transcript."
+    "Do not add any commentary or summary - output only the diarized transcript."
 )
 
 

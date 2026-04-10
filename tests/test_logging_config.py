@@ -1,4 +1,4 @@
-"""Tests for src/logging_config.py — logging setup and timed_operation decorator."""
+"""Tests for src/logging_config.py - logging setup and timed_operation decorator."""
 
 from __future__ import annotations
 

@@ -8,7 +8,7 @@ This document contains **synthetic educational content** created for a workshop 
 
 ## Trial 1: EMPA-REG OUTCOME
 
-**Full Title**: Empagliflozin Cardiovascular Outcome Event Trial in Type 2 Diabetes Mellitus Patients — Removing Excess Glucose
+**Full Title**: Empagliflozin Cardiovascular Outcome Event Trial in Type 2 Diabetes Mellitus Patients - Removing Excess Glucose
 
 **Publication**: Zinman B, et al. Empagliflozin, Cardiovascular Outcomes, and Mortality in Type 2 Diabetes. N Engl J Med. 2015;373:2117-2128.
 
@@ -25,9 +25,9 @@ This document contains **synthetic educational content** created for a workshop 
 
 ### Key Findings
 - **Primary composite endpoint** (cardiovascular death, non-fatal MI, non-fatal stroke): 10.5% empagliflozin vs. 12.1% placebo (HR 0.86, 95% CI 0.74-0.99, p=0.04).
-- **Cardiovascular death**: 3.7% vs. 5.9% (HR 0.62, 95% CI 0.49-0.77, p<0.001) — a 38% relative risk reduction.
-- **Hospitalization for heart failure**: 2.7% vs. 4.1% (HR 0.65, 95% CI 0.50-0.85, p=0.002) — a 35% relative risk reduction.
-- **All-cause mortality**: 5.7% vs. 8.3% (HR 0.68, 95% CI 0.57-0.82, p<0.001) — a 32% relative risk reduction.
+- **Cardiovascular death**: 3.7% vs. 5.9% (HR 0.62, 95% CI 0.49-0.77, p<0.001) - a 38% relative risk reduction.
+- **Hospitalization for heart failure**: 2.7% vs. 4.1% (HR 0.65, 95% CI 0.50-0.85, p=0.002) - a 35% relative risk reduction.
+- **All-cause mortality**: 5.7% vs. 8.3% (HR 0.68, 95% CI 0.57-0.82, p<0.001) - a 32% relative risk reduction.
 - No significant difference in non-fatal MI or non-fatal stroke individually.
 - Genital infections were more common with empagliflozin (6.4% vs. 1.8%).
 

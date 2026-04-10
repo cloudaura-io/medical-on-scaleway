@@ -24,9 +24,9 @@ from dotenv import load_dotenv
 
 load_dotenv(PROJECT_ROOT / ".env")
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Config
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 KB_DIR = PROJECT_ROOT / "data" / "knowledge_base"
 
@@ -40,9 +40,9 @@ DOMAIN_MAP = {
     "pharmacology_reference.md": "pharmacology",
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Main
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 
 def main():
@@ -84,7 +84,7 @@ def main():
             domain = DOMAIN_MAP.get(f.name, "general")
             print(f"  {f.name:<35} {len(chunks):>3} chunks  [{domain}]")
             total_chunks += len(chunks)
-        print(f"\n  Total: {total_chunks} chunks (dry run — nothing written)")
+        print(f"\n  Total: {total_chunks} chunks (dry run - nothing written)")
         return
 
     # Connect
