@@ -79,7 +79,7 @@ Cloud-init retries `docker compose pull` every 30 seconds until images become av
 
 Audio -> Generative APIs (Voxtral STT) -> transcript -> Generative APIs (Mistral) -> clinical JSON. Live mic mode streams via WebSocket to the GPU vLLM instance on the private network.
 
-![Consultation Assistant architecture](docs/usecase1.webp)
+![Consultation Assistant architecture](docs/usecase1.png)
 
 > **Models:** Voxtral Small (24.3B) · Voxtral Mini 4B Realtime (4B) · Mistral Small 3.2 (24B)
 
@@ -87,7 +87,7 @@ Audio -> Generative APIs (Voxtral STT) -> transcript -> Generative APIs (Mistral
 
 PDF -> Object Storage (S3 via NAT) -> Generative APIs (Mistral vision/OCR) -> Managed Inference (BGE embeddings, private) -> PostgreSQL pgvector (private) -> Generative APIs (Mistral cited answer).
 
-![Document Intelligence architecture](docs/usecase2.webp)
+![Document Intelligence architecture](docs/usecase2.png)
 
 > **Models:** Mistral Small 3.2 (24B) · BGE Multilingual Gemma2 (~9B)
 
@@ -95,7 +95,7 @@ PDF -> Object Storage (S3 via NAT) -> Generative APIs (Mistral vision/OCR) -> Ma
 
 Query -> Generative APIs (Mistral agent + tool calling) -> Managed Inference (BGE, private) + pgvector (private) -> verified answer.
 
-![Research Agent architecture](docs/usecase3.webp)
+![Research Agent architecture](docs/usecase3.png)
 
 > **Models:** Mistral Small 3.2 (24B) · BGE Multilingual Gemma2 (~9B)
 
