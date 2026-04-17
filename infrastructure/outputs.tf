@@ -35,8 +35,8 @@ output "showcase2_url" {
 }
 
 output "showcase3_url" {
-  description = "URL for Showcase 3 - Research Agent"
-  value       = "${local.base_url}/research-agent/"
+  description = "URL for Showcase 3 - Drug Interactions"
+  value       = "${local.base_url}/drug-interactions/"
 }
 
 # --- SSH ---

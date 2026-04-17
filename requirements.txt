@@ -16,9 +16,11 @@ websockets>=13.0
 
 # Utilities
 python-dotenv
+requests
 Pillow
 pdf2image
 boto3
+requests
 
 # Notebooks (interactive lab - install separately)
 # jupyter

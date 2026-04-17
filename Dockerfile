@@ -12,4 +12,6 @@ COPY src/ ./src/
 COPY static/ ./static/
 COPY 01_consultation_assistant/ ./01_consultation_assistant/
 COPY 02_document_intelligence/ ./02_document_intelligence/
-COPY 03_research_agent/ ./03_research_agent/
+COPY 03_drug_interactions/ ./03_drug_interactions/
+COPY scripts/ ./scripts/
+COPY workshop/data/ ./workshop/data/

@@ -10,7 +10,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    <link rel="stylesheet" href="static/shared/tokens.css">
+    <link rel="stylesheet" href="static/shared/base.css">
     <link rel="stylesheet" href="static/style.css">
+    <script type="module">
+        import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs';
+        window.pdfjsLib = pdfjsLib;
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+    </script>
 </head>
 <body>
 
@@ -18,20 +26,16 @@
 
     <!-- ======== Header ======== -->
     <header class="header">
-        <div class="header-left">
-            <div class="brand-logos">
-                <img src="static/scaleway-logo.svg" alt="Scaleway" class="brand-scaleway">
-                <img src="static/cloudaura-logo.png" alt="cloudaura.io" class="brand-cloudaura">
+        <div class="header__left">
+            <div class="header__logos">
+                <img src="static/shared/scaleway-logo.svg" alt="Scaleway" class="logo-scaleway">
+                <img src="static/shared/cloudaura-logo.png" alt="cloudaura.io" class="logo-cloudaura">
             </div>
         </div>
-        <div class="header-center">
-            <h1 class="header-title">DOCUMENT INTELLIGENCE</h1>
+        <div class="header__right">
+            <span class="badge">AI-Powered</span>
+            <a class="btn btn--ghost btn--sm" id="homeLink">Home</a>
         </div>
-        <div class="header-right">
-            <span class="header-badge">AI-Powered</span>
-            <a class="header-home-btn" id="homeLink">Home</a>
-        </div>
-        <div class="header-border"></div>
     </header>
 
     <!-- ======== Phase Stepper ======== -->
@@ -66,41 +70,6 @@
             <span class="step-label">QUERY</span>
         </div>
     </nav>
-
-    <!-- ======== AI Animation Overlay ======== -->
-    <div class="ai-animation-overlay hidden" id="ai-overlay">
-        <div class="ai-animation-content">
-            <!-- OCR Scanner -->
-            <div class="ai-scanner hidden" id="ai-scanner">
-                <div class="scanner-doc">
-                    <div class="scanner-line"></div>
-                    <div class="scanner-text-lines">
-                        <div class="scanner-text-line"></div>
-                        <div class="scanner-text-line"></div>
-                        <div class="scanner-text-line short"></div>
-                        <div class="scanner-text-line"></div>
-                        <div class="scanner-text-line short"></div>
-                    </div>
-                </div>
-                <div class="ai-animation-label">Extracting text with Mistral Vision OCR...</div>
-            </div>
-            <!-- Embedding Constellation -->
-            <div class="ai-embeddings hidden" id="ai-embeddings">
-                <canvas id="embeddings-canvas" width="300" height="200"></canvas>
-                <div class="ai-animation-label">Generating embeddings...</div>
-            </div>
-            <!-- Radar Search -->
-            <div class="ai-radar hidden" id="ai-radar">
-                <div class="radar-container">
-                    <div class="radar-pulse"></div>
-                    <div class="radar-pulse delay-1"></div>
-                    <div class="radar-pulse delay-2"></div>
-                    <div class="radar-center"></div>
-                </div>
-                <div class="ai-animation-label">Searching vector database...</div>
-            </div>
-        </div>
-    </div>
 
     <!-- ======== Main Content ======== -->
     <main class="main-content">
@@ -146,9 +115,9 @@
                         <div class="card-icon">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         </div>
-                        <h3>Extracted Text</h3>
+                        <h3>Document</h3>
                     </div>
-                    <span class="badge badge-cyan">Mistral Vision OCR</span>
+                    <div class="process-status hidden" id="process-status"></div>
                 </div>
 
                 <div class="doc-selector">
@@ -157,7 +126,13 @@
                     </select>
                 </div>
 
-                <div class="extracted-text mono" id="extracted-text">
+                <div class="preview-tabs" id="preview-tabs" role="tablist">
+                    <button class="preview-tab is-active" data-tab="pdf" role="tab" aria-selected="true">📄 PDF</button>
+                    <button class="preview-tab" data-tab="text" role="tab" aria-selected="false">📋 Extracted Text</button>
+                </div>
+
+                <div class="preview-pane" id="pdf-canvas-host" data-pane="pdf"></div>
+                <div class="preview-pane extracted-text mono hidden" id="extracted-text" data-pane="text">
                     No documents processed yet.
                 </div>
             </div>
@@ -171,23 +146,23 @@
                         </div>
                         <h3>Ask Questions</h3>
                     </div>
-                    <span class="badge badge-cyan">RAG + Citations</span>
+                    <span class="badge badge--cyan">RAG + Citations</span>
                 </div>
 
                 <div class="chat-messages" id="chat-messages"></div>
 
                 <div class="sample-questions" id="sample-questions">
-                    <button class="sample-q">What were the patient's HbA1c levels?</button>
-                    <button class="sample-q">Summarize the discharge recommendations</button>
-                    <button class="sample-q">Are there any abnormal lab values?</button>
-                    <button class="sample-q">What medications were prescribed at discharge?</button>
-                    <button class="sample-q">What did the renal ultrasound show?</button>
+                    <button class="btn btn--ghost btn--sm sample-q">What is the patient's hemoglobin level, and is it flagged abnormal?</button>
+                    <button class="btn btn--ghost btn--sm sample-q">Are the liver function tests (LFT) within the normal range?</button>
+                    <button class="btn btn--ghost btn--sm sample-q">Which cholesterol values are flagged high, and what are the reference ranges?</button>
+                    <button class="btn btn--ghost btn--sm sample-q">What follow-up tests does the lab recommend for the low hemoglobin?</button>
+                    <button class="btn btn--ghost btn--sm sample-q">When is the follow-up appointment recommended?</button>
                 </div>
 
                 <div class="query-input-row">
                     <input type="text" id="query-input" placeholder="Ask about the documents..." autocomplete="off">
-                    <button id="query-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <button id="query-btn" class="btn btn--primary">
+                        <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                         <span>Ask</span>
                     </button>
                 </div>
@@ -211,7 +186,7 @@
             <div class="status-divider"></div>
             <div class="status-item">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m-7-7H1m22 0h-4m-1.5-6.5L15 7m-6 6-2.5 2.5m12-1L16 17M7 7 4.5 4.5"/></svg>
-                OCR: mistral-small-3.2
+                Vision: mistral-small-3.2
             </div>
             <div class="status-divider"></div>
             <div class="status-item">
@@ -223,7 +198,7 @@
 
 </div>
 
-<script src="static/app.js?v=2"></script>
+<script src="static/app.js?v=4"></script>
 <script>document.getElementById('homeLink').href='/';</script>
 </body>
 </html>

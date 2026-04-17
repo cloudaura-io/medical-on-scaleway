@@ -79,7 +79,7 @@ Cloud-init retries `docker compose pull` every 30 seconds until images become av
 
 Audio -> Generative APIs (Voxtral STT) -> transcript -> Generative APIs (Mistral) -> clinical JSON. Live mic mode streams via WebSocket to the GPU vLLM instance on the private network.
 
-![Consultation Assistant architecture](docs/usecase1.png)
+![Consultation Assistant architecture](docs/usecase1.webp)
 
 > **Models:** Voxtral Small (24.3B) · Voxtral Mini 4B Realtime (4B) · Mistral Small 3.2 (24B)
 
@@ -87,7 +87,7 @@ Audio -> Generative APIs (Voxtral STT) -> transcript -> Generative APIs (Mistral
 
 PDF -> Object Storage (S3 via NAT) -> Generative APIs (Mistral vision/OCR) -> Managed Inference (BGE embeddings, private) -> PostgreSQL pgvector (private) -> Generative APIs (Mistral cited answer).
 
-![Document Intelligence architecture](docs/usecase2.png)
+![Document Intelligence architecture](docs/usecase2.webp)
 
 > **Models:** Mistral Small 3.2 (24B) · BGE Multilingual Gemma2 (~9B)
 
@@ -95,9 +95,51 @@ PDF -> Object Storage (S3 via NAT) -> Generative APIs (Mistral vision/OCR) -> Ma
 
 Query -> Generative APIs (Mistral agent + tool calling) -> Managed Inference (BGE, private) + pgvector (private) -> verified answer.
 
-![Research Agent architecture](docs/usecase3.png)
+![Research Agent architecture](docs/usecase3.webp)
 
 > **Models:** Mistral Small 3.2 (24B) · BGE Multilingual Gemma2 (~9B)
+
+## First-time Scaleway account setup
+
+One-time bootstrap required before any `tofu` commands work. Skip if you already have an account, an API key, and know your Organization + Project IDs.
+
+1. **Create an account** at [account.scaleway.com/register](https://account.scaleway.com/register) and validate a payment method — GPU quotas require it.
+
+2. **Create a project** (recommended) — Console → top-left project dropdown → **+ Create project** (e.g. `medical-lab`). Resources will be namespaced under this project and can be torn down cleanly later.
+
+3. **Generate an API key** — Console → top-right avatar → **IAM** → **API Keys** → **Generate API key**:
+   - **Bearer:** *Myself (IAM user)* — simplest for solo setups
+   - **Description:** `tofu-bootstrap`
+   - **Expiration:** 1 year (rotate or shorten as you prefer)
+   - **Object Storage preferred project:** *No, skip* — Terraform sets up buckets explicitly
+   - Click **Generate** → copy both **Access Key** (`SCW...`) and **Secret Key** (UUID). The secret is shown **once only**.
+
+4. **Copy your IDs:**
+   - **Organization ID** → Console → **IAM** → top of the page, click the copy icon
+   - **Project ID** → Console → **Project Dashboard** → **Settings** → Project ID
+   - (On brand-new accounts these may be the same UUID — Scaleway sometimes seeds the default project with the org ID.)
+
+5. **Paste the four values** into:
+
+   **`infrastructure/terraform.tfvars`** (start from `terraform.tfvars.example`):
+   ```hcl
+   access_key      = "SCW..."                                 # step 3
+   secret_key      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # step 3
+   organization_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # step 4
+   project_id      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # step 4
+
+   student_id  = "student-01"        # any unique lowercase id; namespaces all resources
+   domain_name = "lab.cloudaura.io"  # optional - comment out for HTTP-only
+   ```
+
+   **`workshop/infrastructure/terraform.tfvars`** (only if running the workshop track — same four credentials, plus `ssh_public_key` from `cat ~/.ssh/id_ed25519.pub`).
+
+6. **Request quotas** (new accounts start with 0 GPU capacity). Console → **Support → Account → Quotas**, request:
+   - L4-1-24G GPU instances: **1**
+   - Managed Inference L4 dedicated deployments: **1**
+   - Public Load Balancer, Public Gateway, DB-DEV-S: **1** each
+
+   Some accounts get auto-granted — try `tofu apply` first; if it fails with a quota error, open the ticket. GPU approvals typically take 1-2 business days.
 
 ## Quick start
 
@@ -182,4 +224,4 @@ All showcases implement layered trustworthiness patterns:
 
 ## License
 
-Workshop materials for educational use.
+Copyright 2026 cloudaura.io. Licensed under the [Apache License, Version 2.0](LICENSE).

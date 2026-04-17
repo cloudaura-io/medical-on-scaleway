@@ -15,10 +15,10 @@ import uuid
 
 from src.config import (
     CHAT_MODEL,
+    EMBEDDING_DIMENSIONS,
     EMBEDDING_MODEL,
     get_db_connection,
     get_generative_client,
-    get_inference_client,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,17 +29,19 @@ logger = logging.getLogger(__name__)
 
 
 def create_embedding(text: str) -> list[float]:
-    """Create a dense vector for *text* using the BGE model on Managed Inference.
+    """Create a dense vector for *text* via Scaleway Generative APIs.
 
-    The Managed Inference endpoint runs on a dedicated GPU so patient data
-    never traverses shared infrastructure.
+    Uses the same Qwen3 embedding model + dimension count as the Drug
+    Interactions showcase so the dimension across showcases stays
+    consistent.
     """
     logger.info("create_embedding called, text_length=%d chars", len(text))
-    client = get_inference_client()
-    logger.debug("Requesting embedding from model=%s", EMBEDDING_MODEL)
+    client = get_generative_client()
+    logger.debug("Requesting embedding from model=%s dim=%d", EMBEDDING_MODEL, EMBEDDING_DIMENSIONS)
     response = client.embeddings.create(
         model=EMBEDDING_MODEL,
         input=text,
+        dimensions=EMBEDDING_DIMENSIONS,
     )
     embedding = response.data[0].embedding
     logger.info("create_embedding completed, dimensions=%d", len(embedding))
@@ -51,6 +53,12 @@ def create_embedding(text: str) -> list[float]:
 # ---------------------------------------------------------------------------
 
 
+# Reject chunks shorter than this. OCR of medical PDFs produces many
+# tiny artifacts (page numbers like "1", footer lines, lone table cells)
+# that get embedded as near-random vectors and pollute top-k retrieval.
+MIN_CHUNK_LEN = 50
+
+
 def chunk_document(
     text: str,
     chunk_size: int = 500,
@@ -60,7 +68,8 @@ def chunk_document(
 
     Uses a simple character-level sliding window.  Splits are attempted at
     the nearest newline or sentence boundary inside the window to avoid
-    cutting mid-word.
+    cutting mid-word. Chunks shorter than ``MIN_CHUNK_LEN`` are dropped
+    so noise (page numbers, lone table cells) never reaches the index.
     """
     logger.info(
         "chunk_document called, text_length=%d, chunk_size=%d, overlap=%d",
@@ -72,7 +81,7 @@ def chunk_document(
         logger.warning("chunk_document received empty text, returning empty list")
         return []
 
-    chunks: list[str] = []
+    raw_chunks: list[str] = []
     start = 0
     length = len(text)
 
@@ -88,10 +97,19 @@ def chunk_document(
 
         chunk = text[start:end].strip()
         if chunk:
-            chunks.append(chunk)
+            raw_chunks.append(chunk)
 
-        start = max(end - overlap, start + 1)
+        # Always advance by at least chunk_size//2 so we can't loop on a
+        # near-window boundary producing micro-chunks of a few characters.
+        next_start = max(end - overlap, start + chunk_size // 2)
+        if next_start <= start:
+            next_start = start + 1
+        start = next_start
 
+    chunks = [c for c in raw_chunks if len(c) >= MIN_CHUNK_LEN]
+    dropped = len(raw_chunks) - len(chunks)
+    if dropped:
+        logger.info("chunk_document dropped %d sub-%d-char chunks", dropped, MIN_CHUNK_LEN)
     logger.info("chunk_document completed, produced %d chunks", len(chunks))
     return chunks
 
@@ -100,14 +118,14 @@ def chunk_document(
 # Database helpers
 # ---------------------------------------------------------------------------
 
-_TABLE_INIT_SQL = """
+_TABLE_INIT_SQL = f"""
 CREATE TABLE IF NOT EXISTS document_chunks (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     source      TEXT NOT NULL,
     content     TEXT NOT NULL,
-    metadata    JSONB DEFAULT '{}',
+    metadata    JSONB DEFAULT '{{}}',
     domain      TEXT,
-    embedding   vector(3584),
+    embedding   vector({EMBEDDING_DIMENSIONS}),
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_chunks_domain
@@ -179,7 +197,7 @@ def index_document(
 
 def search(
     query: str,
-    top_k: int = 5,
+    top_k: int = 10,
     domain: str | None = None,
 ) -> list[dict]:
     """Embed *query* and retrieve the most similar chunks.
@@ -254,16 +272,93 @@ def search(
 # ---------------------------------------------------------------------------
 
 _RAG_SYSTEM_PROMPT = """\
-You are a medical knowledge assistant.  Answer the user's question using
-ONLY the provided context chunks.
+You are a medical knowledge assistant. Answer the user's question using
+the provided context chunks.
+
+Be helpful and direct:
+- If the context contains the answer (even under a synonym, abbreviation,
+  or different phrasing), give the answer. Examples: user asks "gender?"
+  and the context says "Sex: Male" -> answer "Male". User asks
+  "Lymphocytes?" and the context shows "Lymphocytes 30 %" in a lab
+  table -> answer "30%".
+- Single-word or terse questions are valid; treat them as a request for
+  the corresponding fact in the context.
+- Every factual statement MUST include a citation in the format
+  [Source: <source>].
+- Use precise medical terminology and structure long answers with clear
+  paragraphs.
+- ONLY say the context lacks the information when, after careful reading,
+  no chunk contains a relevant fact. This should be the last resort, not
+  the default response.
+- Do NOT invent facts or references that are not supported by the context.
+"""
+
+_QUERY_REWRITE_PROMPT = """\
+You rewrite short user questions into rich retrieval queries for a
+vector search over medical documents (lab reports, discharge summaries,
+imaging reports, clinical notes).
+
+Goal: produce a query string whose embedding will land near the right
+section of the document, even when the user's input is one or two
+words. Short queries embed too thinly; pad them with the medical
+phrasings that the actual document is likely to contain.
 
 Rules:
-- Every factual statement MUST include a citation in the format [Source: <source>].
-- If the context does not contain enough information, say so explicitly.
-- Do NOT invent facts or references.
-- Use precise medical terminology.
-- Structure your response with clear paragraphs.
+- Output ONLY the rewritten query string. No explanation, no quotes,
+  no prefix like "Query:".
+- Aim for 15-30 words. Verbose is good; recall matters more than
+  precision at this stage.
+- Include 2-4 synonyms or closely related medical terms.
+- Include the section/category headings the answer would appear under
+  (e.g. for "gender?" think "patient information demographics"; for
+  "Lymphocytes?" think "complete blood count differential").
+- Preserve the user's intent. Don't add facts.
+- If the input is already a full sentence or longer than 8 words,
+  return it unchanged.
+
+Examples:
+  "gender?"
+    -> patient information demographics gender or biological sex male female age date of birth
+  "Lymphocytes?"
+    -> complete blood count CBC differential lymphocyte count percentage value reference range
+  "HbA1c?"
+    -> hemoglobin A1c HbA1c glycated hemoglobin diabetes glycemic control lab result value
+  "abnormal lab values"
+    -> flagged abnormal lab results high low values out of reference range clinical findings
+  "any allergies"
+    -> patient allergies allergic reactions known sensitivities medication intolerance
 """
+
+
+def _rewrite_query(query: str) -> str:
+    """Expand a short user query into a richer retrieval query.
+
+    Returns the rewritten string, or the original query on any failure
+    (so retrieval still happens, just without the recall boost).
+    """
+    if not query or not query.strip():
+        return query
+    try:
+        client = get_generative_client()
+        response = client.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=[
+                {"role": "system", "content": _QUERY_REWRITE_PROMPT},
+                {"role": "user", "content": query.strip()},
+            ],
+            temperature=0.0,
+            max_tokens=80,
+        )
+        rewritten = (response.choices[0].message.content or "").strip()
+        # Strip enclosing quotes the model sometimes adds despite the rule.
+        if len(rewritten) >= 2 and rewritten[0] in ('"', "'") and rewritten[-1] == rewritten[0]:
+            rewritten = rewritten[1:-1].strip()
+        if not rewritten:
+            return query
+        return rewritten
+    except Exception as exc:
+        logger.warning("Query rewrite failed (%s); using original query", exc)
+        return query
 
 
 def generate_cited_response(

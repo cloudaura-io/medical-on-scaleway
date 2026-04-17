@@ -7,6 +7,7 @@ dist/
 build/
 .eggs/
 *.egg
+.coverage
 
 # Virtual environments
 .venv/
@@ -25,11 +26,26 @@ infrastructure/.terraform.tfstate.lock.info
 infrastructure/terraform.tfvars
 infrastructure/*.auto.tfvars
 
+workshop/**/.terraform/
+workshop/**/*.tfstate
+workshop/**/*.tfstate.*
+workshop/**/.terraform.tfstate.lock.info
+workshop/**/terraform.tfvars
+workshop/**/*.auto.tfvars
+workshop/.env
+
+tfplan
+*.tfplan
+*.tfplan.*
+crash.log
+crash.*.log
+
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+.claude/
 
 # OS
 .DS_Store

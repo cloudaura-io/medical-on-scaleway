@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 from fastapi import File, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 _project_root = str(Path(__file__).resolve().parents[1])
 if _project_root not in sys.path:
@@ -34,11 +34,13 @@ from src.app_factory import (
     create_app,
     create_health_endpoint,
     create_index_route,
+    mount_shared_static,
     mount_static,
 )
 from src.config import STT_MODEL, validate_config
-from src.extraction import extract_clinical_note
+from src.extraction import extract_clinical_note, extract_clinical_note_stream
 from src.logging_config import configure_logging
+from src.sse_utils import format_sse_event, safe_streaming_wrapper
 from src.transcription import transcribe_audio_diarized
 from src.transcription_realtime import RealtimeTranscriber, diarize_transcript
 
@@ -62,22 +64,14 @@ validate_config(
 # ---------------------------------------------------------------------------
 
 STATIC_DIR = Path(__file__).parent / "static"
-SHARED_STATIC_DIR = Path(__file__).resolve().parents[1] / "static" / "shared"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 app = create_app(
     title="Doctor Assistant - Scaleway Medical AI Lab",
     version="1.0.0",
 )
 
-# Mount the shared static directory BEFORE the app-specific one so
-# the more-specific /static/shared path is matched first.
-from fastapi.staticfiles import StaticFiles
-
-app.mount(
-    "/static/shared",
-    StaticFiles(directory=str(SHARED_STATIC_DIR)),
-    name="shared_static",
-)
+mount_shared_static(app, PROJECT_ROOT)
 mount_static(app, STATIC_DIR)
 
 create_index_route(app, STATIC_DIR)
@@ -177,7 +171,7 @@ async def ws_transcribe(websocket: WebSocket):
 
 @app.post("/api/extract")
 async def extract(request: Request):
-    """Extract a structured clinical note from a transcript."""
+    """Extract a structured clinical note from a transcript (non-streaming)."""
     body = await request.json()
     transcript = body.get("transcript", "")
     if not transcript:
@@ -191,3 +185,56 @@ async def extract(request: Request):
     elapsed = round(time.perf_counter() - start, 2)
 
     return {"clinical_note": result, "processing_time_s": elapsed}
+
+
+@app.post("/api/extract/stream")
+async def extract_stream(request: Request):
+    """Stream clinical-note extraction as SSE events.
+
+    Events:
+      - {"type": "token", "text": "..."} - raw chunks as the model emits them
+      - {"type": "clinical_note", "data": {...}, "processing_time_s": float}
+      - {"type": "error", "error": "..."}
+    """
+    body = await request.json()
+    transcript = body.get("transcript", "")
+    if not transcript:
+        return JSONResponse(
+            {"error": "transcript field is required"},
+            status_code=400,
+        )
+
+    async def event_generator():
+        import asyncio
+
+        start = time.perf_counter()
+        loop = asyncio.get_running_loop()
+        iterator = extract_clinical_note_stream(transcript)
+
+        try:
+            while True:
+                event = await loop.run_in_executor(None, next, iterator, None)
+                if event is None:
+                    break
+                kind, payload = event
+                if kind == "token":
+                    yield format_sse_event("step", {"type": "token", "text": payload})
+                elif kind == "clinical_note":
+                    elapsed = round(time.perf_counter() - start, 2)
+                    yield format_sse_event(
+                        "step",
+                        {
+                            "type": "clinical_note",
+                            "data": payload,
+                            "processing_time_s": elapsed,
+                        },
+                    )
+                elif kind == "error":
+                    yield format_sse_event("step", {"type": "error", "error": payload})
+        except Exception as exc:
+            yield format_sse_event("step", {"type": "error", "error": str(exc)})
+
+    return StreamingResponse(
+        safe_streaming_wrapper(event_generator()),
+        media_type="text/event-stream",
+    )
