@@ -61,7 +61,7 @@ write_files:
           var showcases = [
             {path: "consultation-assistant", num: "01", name: "Consultation Assistant", desc: "Real-time medical transcription and clinical data extraction"},
             {path: "document-intelligence", num: "02", name: "Document Intelligence", desc: "Medical document OCR, vector indexing, and RAG Q&A"},
-            {path: "research-agent", num: "03", name: "Research Agent", desc: "Multi-domain medical research with tool calling"}
+            {path: "drug-interactions", num: "03", name: "Drug Interactions", desc: "FDA-grounded drug interaction checker with ReAct agent"}
           ];
           var el = document.getElementById("links");
           showcases.forEach(function(s) {
@@ -83,7 +83,7 @@ write_files:
 
 %{ endif ~}
           # Redirect bare paths to trailing slash
-          @addslash path /consultation-assistant /document-intelligence /research-agent
+          @addslash path /consultation-assistant /document-intelligence /drug-interactions
           redir @addslash {path}/ 301
 
           # Lightweight health check for LB (does not depend on any upstream)
@@ -98,7 +98,7 @@ write_files:
           handle_path /document-intelligence/* {
               reverse_proxy showcase2:8002
           }
-          handle_path /research-agent/* {
+          handle_path /drug-interactions/* {
               reverse_proxy showcase3:8003
           }
 
@@ -131,6 +131,8 @@ write_files:
           expose:
             - "8001"
           env_file: /opt/app/.env
+          extra_hosts:
+            - "${inference_hostname}:${inference_private_ip}"
           restart: unless-stopped
 
         showcase2:
@@ -139,14 +141,18 @@ write_files:
           expose:
             - "8002"
           env_file: /opt/app/.env
+          extra_hosts:
+            - "${inference_hostname}:${inference_private_ip}"
           restart: unless-stopped
 
         showcase3:
           image: rg.fr-par.scw.cloud/${registry_namespace}/showcase3:latest
-          command: ["uvicorn", "03_research_agent.main:app", "--host", "0.0.0.0", "--port", "8003"]
+          command: ["uvicorn", "03_drug_interactions.main:app", "--host", "0.0.0.0", "--port", "8003"]
           expose:
             - "8003"
           env_file: /opt/app/.env
+          extra_hosts:
+            - "${inference_hostname}:${inference_private_ip}"
           restart: unless-stopped
 
   # -- Application .env (injected by OpenTofu) --------------------------------
@@ -177,6 +183,9 @@ write_files:
           echo "[app] Images pulled. Starting services..."
           docker compose up -d
           echo "[app] All services started."
+          echo "[app] Seeding drug interaction knowledge base..."
+          docker compose exec -T showcase3 python scripts/init_drug_db.py || echo "[app] WARNING: Drug DB seeding failed (may retry manually)"
+          echo "[app] Drug DB seeding complete."
           exit 0
         fi
         echo "[app] Attempt $attempt: images not yet available, retrying in 30s..."
@@ -193,5 +202,5 @@ runcmd:
   - systemctl enable docker
   - systemctl start docker
   # Start the application (retries pulls until images are pushed)
-  # Note: database schema is created lazily by the backend on first request
+  # Drug interaction DB is seeded inside showcase3 container after start
   - /opt/app/start.sh

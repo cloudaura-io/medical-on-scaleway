@@ -13,6 +13,7 @@ Requires Scaleway API keys and a PostgreSQL database with pgvector.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 
 # ---------------------------------------------------------------------------
@@ -35,6 +36,7 @@ from src.app_factory import (
     create_app,
     create_health_endpoint,
     create_index_route,
+    mount_shared_static,
     mount_static,
 )
 from src.config import validate_config
@@ -62,8 +64,10 @@ validate_config(
 # App
 # ---------------------------------------------------------------------------
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 app = create_app(title="Medical Document Intelligence", version="0.1.0")
+mount_shared_static(app, PROJECT_ROOT)
 mount_static(app, STATIC_DIR)
 create_index_route(app, STATIC_DIR)
 
@@ -88,7 +92,7 @@ class QueryRequest(BaseModel):
     """Request body for document queries."""
 
     query: str
-    top_k: int = 5
+    top_k: int = 10
 
 
 class UploadResponse(BaseModel):
@@ -194,11 +198,20 @@ async def process_document(doc_id: str):
 
 @app.post("/api/query", response_model=QueryResponse)
 async def query_documents(req: QueryRequest):
-    """Answer a question using RAG over indexed documents."""
-    try:
-        from src.rag import generate_cited_response, search
+    """Answer a question using RAG over indexed documents.
 
-        results = search(req.query, top_k=req.top_k)
+    Pipeline: rewrite the query for richer retrieval, embed + similarity
+    search, then ask the answer-LLM using the user's original wording.
+    """
+    try:
+        from src.rag import _rewrite_query, generate_cited_response, search
+
+        retrieval_query = _rewrite_query(req.query)
+        if retrieval_query != req.query:
+            logger = logging.getLogger(__name__)
+            logger.info("Query rewrite: %r -> %r", req.query, retrieval_query)
+
+        results = search(retrieval_query, top_k=req.top_k)
         if not results:
             return QueryResponse(
                 answer=("No relevant documents found. Please upload and process documents first."),

@@ -20,12 +20,16 @@ ignore = [
 # Showcase apps must manipulate sys.path before importing src modules
 "01_consultation_assistant/main.py" = ["E402"]
 "02_document_intelligence/main.py" = ["E402"]
-"03_research_agent/main.py" = ["E402"]
+"03_drug_interactions/main.py" = ["E402"]
 # Test files and scripts that need sys.path setup before imports
 "tests/*.py" = ["E402"]
 "scripts/*.py" = ["E402"]
 # FastAPI File(...) in defaults is the standard pattern
 "*/main.py" = ["B008"]
+# Workshop notebooks: import ordering and top-of-cell rules don't apply
+# (cells need intermediate setup between imports)
+"workshop/notebooks/*.ipynb" = ["E402", "I001", "E741", "F401", "W293", "B905"]
+"workshop/notebooks_solutions/*.ipynb" = ["E402", "I001", "E741", "F401", "W293", "B905"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]

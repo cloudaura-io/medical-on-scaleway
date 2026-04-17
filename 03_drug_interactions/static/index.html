@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drug Interactions - Scaleway Medical AI Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="static/shared/tokens.css" />
+  <link rel="stylesheet" href="static/shared/base.css" />
+  <link rel="stylesheet" href="static/style.css" />
+</head>
+<body>
+
+  <!-- ===== Header ===== -->
+  <header class="header">
+    <div class="header__left">
+      <div class="header__logos">
+        <img src="static/shared/scaleway-logo.svg" alt="Scaleway" class="logo-scaleway">
+        <img src="static/shared/cloudaura-logo.png" alt="cloudaura.io" class="logo-cloudaura">
+      </div>
+    </div>
+    <div class="header__right">
+      <span class="header__subtitle">FDA-Grounded Interaction Checker</span>
+      <span class="header__status-dot" id="statusDot"></span>
+      <span class="header__status-label" id="statusLabel">IDLE</span>
+      <a class="btn btn--ghost btn--sm" id="homeLink">Home</a>
+    </div>
+  </header>
+
+  <!-- ===== Main Content ===== -->
+  <main class="container">
+
+    <!-- Input Section -->
+    <section class="input-section">
+      <div class="input-section__label">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c40ef" stroke-width="2"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16"/><path d="M3 21h18"/><path d="M12 7v4"/><path d="M10 9h4"/></svg>
+        MEDICATIONS
+      </div>
+      <div class="input-row">
+        <input
+          type="text"
+          id="medInput"
+          class="med-input"
+          placeholder="Type drug names separated by commas (e.g., warfarin, aspirin, ibuprofen)"
+        />
+        <select id="populationSelect" class="population-select">
+          <option value="">No specific population</option>
+          <option value="pregnancy">Pregnancy</option>
+          <option value="pediatric">Pediatric</option>
+          <option value="geriatric">Geriatric</option>
+          <option value="renal">Renal impairment</option>
+          <option value="hepatic">Hepatic impairment</option>
+        </select>
+        <button id="btnAnalyze" class="btn btn--primary">
+          <span class="btn__icon" aria-hidden="true">&#9889;</span>
+          <span>Analyze</span>
+        </button>
+      </div>
+
+      <!-- Sample Queries -->
+      <div class="sample-queries" id="sampleQueries">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- Two-column layout -->
+    <div class="content-grid">
+
+      <!-- Left: Agent Trace -->
+      <section class="panel panel--trace">
+        <div class="panel__header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c40ef" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span class="panel__title">AGENT TRACE</span>
+          <span class="panel__counter" id="traceCounter">0 steps</span>
+        </div>
+        <div class="trace-log" id="traceLog">
+          <div class="trace-placeholder">Agent trace will appear here as the ReAct loop runs...</div>
+        </div>
+      </section>
+
+      <!-- Right: Results -->
+      <section class="panel panel--results">
+        <div class="panel__header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c40ef" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span class="panel__title">FINDINGS</span>
+          <span class="panel__counter" id="findingsCounter">--</span>
+        </div>
+        <div class="findings-container" id="findingsContainer">
+          <div class="findings-placeholder">Severity-classified findings will appear after analysis completes.</div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Final Report -->
+    <section class="panel panel--report" id="reportPanel" style="display:none;">
+      <div class="panel__header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8c40ef" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span class="panel__title">FINAL REPORT</span>
+      </div>
+      <div class="report-content" id="reportContent"></div>
+    </section>
+
+    <!-- Disclaimer -->
+    <footer class="disclaimer">
+      <p>For educational purposes only. Not a substitute for professional medical advice. Data sourced from openFDA Structured Product Labeling (public domain, 17 U.S.C. &sect;105).</p>
+    </footer>
+
+  </main>
+
+  <script src="static/app.js?v=2"></script>
+</body>
+</html>

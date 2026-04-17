@@ -1,0 +1,114 @@
+#cloud-config
+# Scaleway Medical AI Workshop - Per-student JupyterLab host
+# Installs Python, JupyterLab, OpenTofu, Scaleway CLI, Caddy, and
+# workshop Python dependencies. Starts JupyterLab behind Caddy with
+# token-based authentication.
+#
+# ASCII-only: non-ASCII chars break the YAML parser on Scaleway images.
+# No package_update at top: stalls without network on Scaleway.
+
+write_files:
+  # -- Environment variables for workshop notebooks ----------------------------
+  - path: /home/jupyter/.env
+    permissions: "0600"
+    content: |
+      SCW_ACCESS_KEY=${scw_access_key}
+      SCW_SECRET_KEY=${scw_secret_key}
+      SCW_DEFAULT_ORGANIZATION_ID=${scw_organization_id}
+      SCW_DEFAULT_PROJECT_ID=${scw_project_id}
+      SCW_DEFAULT_REGION=${scw_region}
+      SCW_DEFAULT_ZONE=${scw_zone}
+      STUDENT_ID=${student_id}
+      JUPYTER_TOKEN=${jupyter_token}
+
+  # -- JupyterLab systemd service ----------------------------------------------
+  - path: /etc/systemd/system/jupyterlab.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=JupyterLab for Workshop
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      User=jupyter
+      Group=jupyter
+      EnvironmentFile=/home/jupyter/.env
+      WorkingDirectory=/home/jupyter
+      ExecStart=/usr/local/bin/jupyter lab \
+        --ServerApp.token=${jupyter_token} \
+        --ServerApp.password= \
+        --ServerApp.ip=127.0.0.1 \
+        --ServerApp.port=8888 \
+        --ServerApp.root_dir=/home/jupyter/workshop \
+        --ServerApp.default_url=/lab/tree/notebooks/00_setup.ipynb \
+        --ServerApp.allow_remote_access=True \
+        --no-browser
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # -- Wait for network --------------------------------------------------------
+  - for i in $(seq 1 30); do curl -sf --max-time 3 https://www.google.com > /dev/null 2>&1 && break; sleep 5; done
+
+  # -- System packages ---------------------------------------------------------
+  - apt-get update -y
+  - apt-get install -y python3.11 python3.11-venv python3-pip git jq postgresql-client-14 curl gnupg2 apt-transport-https
+
+  # -- Create jupyter user -----------------------------------------------------
+  - useradd -m -s /bin/bash jupyter || true
+  - chown -R jupyter:jupyter /home/jupyter
+
+  # -- Install OpenTofu --------------------------------------------------------
+  - |
+    curl -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/install-opentofu.sh
+    chmod +x /tmp/install-opentofu.sh
+    /tmp/install-opentofu.sh --install-method deb
+
+  # -- Install Scaleway CLI ----------------------------------------------------
+  - |
+    curl -fsSL https://raw.githubusercontent.com/scaleway/scaleway-cli/master/scripts/get.sh | sh
+
+  # -- Install Caddy -----------------------------------------------------------
+  - |
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+    apt-get update -y
+    apt-get install -y caddy
+    systemctl disable --now caddy
+
+  # -- Install Python packages -------------------------------------------------
+  - pip3 install jupyterlab openai "psycopg[binary]" pgvector boto3 gradio pandas lxml python-dotenv requests ipywidgets
+
+  # -- Clone workshop repo (if URL provided) -----------------------------------
+  - |
+    if [ -n "${workshop_repo_url}" ]; then
+      su - jupyter -c "git clone -b workshop ${workshop_repo_url} /home/jupyter/repo"
+      ln -sf /home/jupyter/repo/workshop /home/jupyter/workshop
+    else
+      mkdir -p /home/jupyter/workshop/notebooks /home/jupyter/workshop/notebooks_solutions /home/jupyter/workshop/data /home/jupyter/workshop/iac_snippets /home/jupyter/workshop/src /home/jupyter/workshop/scripts
+    fi
+
+  # -- Copy .env to workshop directory -----------------------------------------
+  - cp /home/jupyter/.env /home/jupyter/workshop/.env 2>/dev/null || true
+  - chown -R jupyter:jupyter /home/jupyter
+
+  # -- Write Caddyfile ----------------------------------------------------------
+  # tls_enabled=true: Caddy obtains a Let's Encrypt cert for ${domain_name}
+  #                   (requires DNS A record pointing at this instance's public IP).
+  # tls_enabled=false: plain HTTP on :80, no cert.
+  - |
+    if [ "${tls_enabled}" = "true" ]; then
+      printf '%s\n' '${domain_name} {' '  reverse_proxy localhost:8888' '}' > /etc/caddy/Caddyfile
+    else
+      printf '%s\n' ':80 {' '  reverse_proxy localhost:8888' '}' > /etc/caddy/Caddyfile
+    fi
+
+  # -- Start services ----------------------------------------------------------
+  - systemctl daemon-reload
+  - systemctl enable --now jupyterlab
+  - systemctl enable --now caddy

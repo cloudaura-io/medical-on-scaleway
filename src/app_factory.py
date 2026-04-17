@@ -93,6 +93,26 @@ def mount_static(app: FastAPI, static_dir: Path) -> None:
     logger.info("Mounted static files from %s", static_dir)
 
 
+def mount_shared_static(app: FastAPI, project_root: Path) -> None:
+    """Mount the repo-wide ``static/shared`` directory at ``/static/shared``.
+
+    MUST be called BEFORE :func:`mount_static` so that FastAPI's static file
+    router matches the more-specific ``/static/shared`` path before falling
+    through to the per-showcase ``/static`` mount.
+
+    Args:
+        app: The FastAPI application instance.
+        project_root: The repository root (where ``static/shared`` lives).
+    """
+    shared_dir = project_root / "static" / "shared"
+    app.mount(
+        "/static/shared",
+        StaticFiles(directory=str(shared_dir)),
+        name="shared_static",
+    )
+    logger.info("Mounted shared static files from %s", shared_dir)
+
+
 # ------------------------------------------------------------------
 # Index route
 # ------------------------------------------------------------------

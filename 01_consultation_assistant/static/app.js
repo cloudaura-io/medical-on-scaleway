@@ -152,9 +152,9 @@
     audioFileInput.disabled = false;
     recordingInd.className = 'recording-indicator';
     recordingLabel.textContent = 'Idle';
-    transcriptBadge.className = 'panel__badge';
+    transcriptBadge.className = 'badge badge--muted';
     transcriptBadge.textContent = 'waiting';
-    clinicalBadge.className = 'panel__badge';
+    clinicalBadge.className = 'badge badge--muted';
     clinicalBadge.textContent = 'pending';
     statusValText.textContent = 'Ready';
     statusValidation.className = 'status-bar__value status-bar__value--status';
@@ -169,9 +169,9 @@
     audioFileInput.disabled = true;
     recordingInd.className = 'recording-indicator is-active';
     recordingLabel.textContent = 'Transcribing';
-    transcriptBadge.className = 'panel__badge is-active';
+    transcriptBadge.className = 'badge badge--active';
     transcriptBadge.textContent = 'processing';
-    clinicalBadge.className = 'panel__badge';
+    clinicalBadge.className = 'badge badge--muted';
     clinicalBadge.textContent = 'pending';
     statusValText.textContent = 'Transcribing';
     statusValidation.className = 'status-bar__value status-bar__value--status is-active';
@@ -181,8 +181,8 @@
     aiProcessing.classList.add('is-visible');
     transcriptText.classList.remove('is-visible');
     transcriptText.innerHTML = '';
-    clinicalHolder.style.display = '';
-    clinicalCards.innerHTML = '';
+    clinicalHolder.style.display = 'none';
+    showLoadingCards();
     showSteps(TRANSCRIBE_STEPS, 2000);
   }
 
@@ -194,16 +194,15 @@
   function setExtracting() {
     recordingInd.className = 'recording-indicator is-active';
     recordingLabel.textContent = 'Extracting';
-    transcriptBadge.className = 'panel__badge is-complete';
+    transcriptBadge.className = 'badge badge--complete';
     transcriptBadge.textContent = 'complete';
-    clinicalBadge.className = 'panel__badge is-active';
-    clinicalBadge.textContent = 'processing';
+    clinicalBadge.className = 'badge badge--active';
+    clinicalBadge.textContent = 'streaming';
     statusValText.textContent = 'Extracting';
     waveform.classList.remove('is-active');
 
     clinicalHolder.style.display = 'none';
-    showLoadingCards();
-    showSteps(EXTRACT_STEPS, 1500);
+    clearSteps();
   }
 
   function setComplete(processingTime) {
@@ -212,7 +211,7 @@
     audioFileInput.disabled = false;
     recordingInd.className = 'recording-indicator is-complete';
     recordingLabel.textContent = 'Complete';
-    clinicalBadge.className = 'panel__badge is-complete';
+    clinicalBadge.className = 'badge badge--complete';
     clinicalBadge.textContent = 'extracted';
     statusValText.textContent = 'Validated';
     statusValidation.className = 'status-bar__value status-bar__value--status is-complete';
@@ -370,67 +369,8 @@
     setTranscribing();
     startTimer();
 
-    let wordIndex = 0;
-
-    // Token drip queue - feeds tokens into the DOM with a typewriter effect
-    const tokenQueue = [];
-    let dripping = false;
-    let allQueued = false;
-    let resolveDrip = null;
-    const dripPromise = new Promise((r) => { resolveDrip = r; });
-    const TOKEN_INTERVAL_MS = 30;
-
-    function drainQueue() {
-      if (dripping) return;
-      dripping = true;
-
-      function step() {
-        if (tokenQueue.length === 0) {
-          dripping = false;
-          if (allQueued) {
-            resolveDrip();
-          }
-          return;
-        }
-
-        const text = tokenQueue.shift();
-
-        // On first token, hide spinner and show transcript area
-        if (wordIndex === 0) {
-          aiProcessing.classList.remove('is-visible');
-          transcriptText.classList.add('is-visible');
-        }
-
-        // If the token contains a newline, render <br> elements instead of a span
-        if (/\n/.test(text)) {
-          const nlCount = (text.match(/\n/g) || []).length;
-          for (let i = 0; i < nlCount; i++) {
-            transcriptText.appendChild(document.createElement('br'));
-          }
-        } else {
-          const span = document.createElement('span');
-          span.className = 'word';
-          span.textContent = text;
-          span.dataset.index = wordIndex++;
-          transcriptText.appendChild(span);
-          autoScroll(transcriptBody);
-
-          span.classList.add('word-glow');
-          span.addEventListener('animationend', () => {
-            span.classList.remove('word-glow');
-          });
-        }
-
-        transcriptBody.scrollTop = transcriptBody.scrollHeight;
-
-        setTimeout(step, TOKEN_INTERVAL_MS);
-      }
-
-      step();
-    }
-
     try {
-      // Step 1 - Transcribe audio via diarized endpoint
+      // Step 1 - Transcribe audio (blocking; no fake streaming)
       const formData = new FormData();
       formData.append('file', file);
 
@@ -445,45 +385,97 @@
       }
 
       const transcribeData = await transcribeRes.json();
-      const transcript = transcribeData.transcript;
+      const transcript = transcribeData.transcript || '';
 
       stopTimer();
 
-      // Split transcript into tokens (preserving whitespace) and feed into drip queue
-      const tokens = transcript.split(/(\s+)/);
-      for (const token of tokens) {
-        if (token) {
-          tokenQueue.push(token);
-        }
-      }
-      allQueued = true;
-      drainQueue();
-
-      // Wait for the drip queue to finish rendering all tokens
-      await dripPromise;
+      // Render the full transcript instantly with a staggered CSS fade-in.
+      renderTranscriptInstant(transcript);
       setTranscriptReady();
 
-      // Step 2 - Extract clinical note
+      // Step 2 - Stream clinical-note extraction from Mistral
       setExtracting();
-
-      const extractRes = await fetch('api/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript }),
-      });
-
-      if (!extractRes.ok) {
-        const err = await extractRes.json().catch(() => ({}));
-        throw new Error(err.detail || err.error || `Extraction failed (${extractRes.status})`);
-      }
-
-      const extractData = await extractRes.json();
-      renderClinicalNote(extractData.clinical_note);
-      setComplete(extractData.processing_time_s);
+      await streamClinicalNote(transcript);
     } catch (err) {
       stopTimer();
       setError(err.message || 'Processing failed');
       console.error('Pipeline error:', err);
+    }
+  }
+
+  function renderTranscriptInstant(transcript) {
+    aiProcessing.classList.remove('is-visible');
+    transcriptText.classList.add('is-visible');
+    transcriptText.innerHTML = '';
+
+    if (!transcript) return;
+
+    const fragment = document.createDocumentFragment();
+    const tokens = transcript.split(/(\s+)/);
+    tokens.forEach((token) => {
+      if (!token) return;
+      if (/\n/.test(token)) {
+        const nlCount = (token.match(/\n/g) || []).length;
+        for (let i = 0; i < nlCount; i++) {
+          fragment.appendChild(document.createElement('br'));
+        }
+        return;
+      }
+      const span = document.createElement('span');
+      span.className = 'word';
+      span.textContent = token;
+      fragment.appendChild(span);
+    });
+    transcriptText.appendChild(fragment);
+    autoScroll(transcriptBody);
+  }
+
+  async function streamClinicalNote(transcript) {
+    const res = await fetch('api/extract/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript }),
+    });
+
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.error || `Extraction failed (${res.status})`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split('\n\n');
+      buffer = events.pop() || '';
+
+      for (const block of events) {
+        if (!block.trim()) continue;
+        const dataLines = [];
+        block.split('\n').forEach((line) => {
+          if (line.startsWith('data: ')) dataLines.push(line.substring(6));
+        });
+        if (!dataLines.length) continue;
+        let payload;
+        try {
+          payload = JSON.parse(dataLines.join('\n'));
+        } catch (e) {
+          continue;
+        }
+
+        if (payload.type === 'clinical_note' && payload.data) {
+          renderClinicalNote(payload.data);
+          setComplete(payload.processing_time_s);
+          return;
+        } else if (payload.type === 'error') {
+          throw new Error(payload.error || 'Extraction error');
+        }
+      }
     }
   }
 
@@ -645,15 +637,7 @@
   async function runExtraction(transcript) {
     setExtracting();
     try {
-      const res = await fetch('api/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript }),
-      });
-      if (!res.ok) throw new Error('Extraction failed');
-      const data = await res.json();
-      renderClinicalNote(data.clinical_note);
-      setComplete(data.processing_time_s);
+      await streamClinicalNote(transcript);
     } catch (err) {
       setError(err.message || 'Extraction failed');
     }

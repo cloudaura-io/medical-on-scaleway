@@ -119,7 +119,13 @@ def get_inference_client():
 
     Dedicated GPU endpoint for BGE embeddings - keeps patient data
     on isolated infrastructure.
+
+    Note: Scaleway Managed Inference private endpoints use an internal CA
+    certificate that is not in the default trust store.  Since we are
+    connecting over a private VPC network, we disable TLS verification
+    for this client only.
     """
+    import httpx
     from openai import OpenAI
 
     logger.info("Initialising managed inference client")
@@ -128,6 +134,7 @@ def get_inference_client():
     return OpenAI(
         base_url=base_url,
         api_key=_require("SCW_SECRET_KEY"),
+        http_client=httpx.Client(verify=False),
     )
 
 
@@ -184,5 +191,6 @@ def get_s3_bucket() -> str:
 CHAT_MODEL = "mistral-small-3.2-24b-instruct-2506"  # also handles vision/OCR
 STT_MODEL = "voxtral-small-24b-2507"
 VISION_MODEL = CHAT_MODEL  # pixtral-12b-2409 is deprecated; Mistral Small 3.2 has native vision
-EMBEDDING_MODEL = "bge-multilingual-gemma2"
+EMBEDDING_MODEL = "qwen3-embedding-8b"
+EMBEDDING_DIMENSIONS = 768
 REALTIME_STT_MODEL = "Voxtral-Mini-4B-Realtime-2602"
