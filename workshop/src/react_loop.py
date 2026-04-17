@@ -17,7 +17,7 @@ import json
 import logging
 from typing import Any
 
-from workshop.src.tools import TOOL_DEFINITIONS
+from .tools import TOOL_DEFINITIONS
 
 logger = logging.getLogger(__name__)
 

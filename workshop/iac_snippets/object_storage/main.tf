@@ -23,10 +23,10 @@ provider "scaleway" {
 }
 
 resource "scaleway_object_bucket" "workshop" {
-  name   = "workshop-${var.student_id}-data"
+  name   = "workshop-${var.project_suffix}-data"
   region = var.region
   tags = {
-    workshop   = "true"
-    student_id = var.student_id
+    workshop       = "true"
+    project_suffix = var.project_suffix
   }
 }

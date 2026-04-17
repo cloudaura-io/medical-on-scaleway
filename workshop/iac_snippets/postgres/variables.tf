@@ -21,8 +21,8 @@ variable "project_id" {
   type        = string
 }
 
-variable "student_id" {
-  description = "Unique student identifier"
+variable "project_suffix" {
+  description = "Short suffix derived from the Scaleway project_id, used to namespace resources"
   type        = string
 }
 

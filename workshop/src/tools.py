@@ -14,7 +14,7 @@ import json
 import logging
 from typing import Any
 
-from workshop.src.rag import similarity_search
+from .rag import similarity_search
 
 logger = logging.getLogger(__name__)
 
