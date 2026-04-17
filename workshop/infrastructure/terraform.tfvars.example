@@ -12,5 +12,5 @@ ssh_public_key = "ssh-ed25519 AAAA..."
 # When empty (default): auto-generates a sslip.io domain for free TLS.
 # domain_name = "workshop-student01.example.com"
 
-# Optional: Git repo URL to clone on the instance
-# workshop_repo_url = "https://github.com/your-org/your-repo.git"
+# Optional: public repo the JupyterLab VM git-clones on first boot; unset means JupyterLab boots empty with no workshop content.
+# workshop_repo_url = "https://github.com/cloudaura-io/medical-on-scaleway.git"
