@@ -38,11 +38,13 @@ provider "scaleway" {
 }
 
 locals {
-  name_prefix = "medical-lab-${var.student_id}"
-  common_tags = ["workshop", "medical-lab", var.student_id]
-  vpc_cidr    = "172.16.32.0/22"
-  tls_enabled = var.domain_name != ""
-  base_url    = local.tls_enabled ? "https://${var.domain_name}" : "http://${scaleway_lb_ip.main.ip_address}"
+  project_suffix   = substr(var.project_id, 0, 8)
+  name_prefix      = "medical-lab-${local.project_suffix}"
+  common_tags      = ["workshop", "medical-lab", local.project_suffix]
+  vpc_cidr         = "172.16.32.0/22"
+  sslip_domain     = "${replace(scaleway_lb_ip.main.ip_address, ".", "-")}.sslip.io"
+  effective_domain = var.domain_name != "" ? var.domain_name : local.sslip_domain
+  base_url         = "https://${local.effective_domain}"
 
   ssh_tunnels = {
     app = { ip = scaleway_ipam_ip.app.address, port = 2201 }
@@ -191,7 +193,7 @@ resource "scaleway_object_bucket" "medical_docs" {
 
   tags = {
     workshop = "medical-lab"
-    student  = var.student_id
+    project  = local.project_suffix
   }
 }
 
@@ -314,7 +316,6 @@ resource "scaleway_instance_server" "app" {
       inference_private_ip = scaleway_inference_deployment.embedding.private_ip[0].address
       voxtral_private_ip   = scaleway_ipam_ip.gpu.address
       s3_bucket            = scaleway_object_bucket.medical_docs.name
-      tls_enabled          = local.tls_enabled
     })
   }
 
@@ -405,8 +406,6 @@ resource "scaleway_instance_private_nic" "voxtral_gpu" {
 #   Port 2201 -> app instance
 #   Port 2202 -> GPU instance
 #
-# PREREQUISITE (TLS only): DNS A record must point var.domain_name to the
-# LB IP before applying, so Let's Encrypt HTTP-01 challenge can succeed.
 ################################################################################
 
 resource "scaleway_lb_ip" "main" {}
@@ -423,15 +422,12 @@ resource "scaleway_lb" "main" {
   tags = local.common_tags
 }
 
-# --- Let's Encrypt TLS certificate (only when domain_name is set) ---
-
 resource "scaleway_lb_certificate" "main" {
-  count = local.tls_enabled ? 1 : 0
   lb_id = scaleway_lb.main.id
-  name  = "${local.name_prefix}-le-${substr(sha256(var.domain_name), 0, 8)}"
+  name  = "${local.name_prefix}-le-${substr(sha256(local.effective_domain), 0, 8)}"
 
   letsencrypt {
-    common_name = var.domain_name
+    common_name = local.effective_domain
   }
 
   lifecycle {
@@ -465,15 +461,12 @@ resource "scaleway_lb_frontend" "http" {
   inbound_port = 80
 }
 
-# --- HTTPS frontend (port 443, only when TLS enabled) ---
-
 resource "scaleway_lb_frontend" "https" {
-  count           = local.tls_enabled ? 1 : 0
   lb_id           = scaleway_lb.main.id
   name            = "https"
   backend_id      = scaleway_lb_backend.app.id
   inbound_port    = 443
-  certificate_ids = [scaleway_lb_certificate.main[0].id]
+  certificate_ids = [scaleway_lb_certificate.main.id]
 }
 
 # --- SSH via LB (TCP passthrough, avoids asymmetric routing) ---

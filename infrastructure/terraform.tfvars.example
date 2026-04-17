@@ -7,10 +7,7 @@ secret_key      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 organization_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 project_id      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-# Your unique student identifier (lowercase, no spaces)
-student_id = "student-01"
-
-# Domain name for Let's Encrypt TLS (optional).
-# Leave commented out for HTTP-only deployment (no domain needed).
-# If set: create a DNS A record pointing to the LB IP *before* `tofu apply`.
-# domain_name = "lab.cloudaura.io"
+# Custom domain name (optional).
+# When set: uses your domain for TLS (requires a DNS A record pointing to the LB IP).
+# When empty (default): auto-generates a sslip.io domain from the LB IP for free TLS.
+# domain_name = "lab.example.com"

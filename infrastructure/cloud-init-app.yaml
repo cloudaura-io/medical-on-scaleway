@@ -76,19 +76,20 @@ write_files:
     permissions: "0644"
     content: |
       :80 {
-%{ if tls_enabled ~}
           # Redirect HTTP to HTTPS (LB sets X-Forwarded-Proto header)
           @httpOnly header X-Forwarded-Proto http
           redir @httpOnly https://{host}{uri} 301
 
-%{ endif ~}
           # Redirect bare paths to trailing slash
           @addslash path /consultation-assistant /document-intelligence /drug-interactions
           redir @addslash {path}/ 301
 
-          # Lightweight health check for LB (does not depend on any upstream)
           handle /healthz {
               respond "OK" 200
+          }
+
+          handle /vllm-health {
+              reverse_proxy ${voxtral_private_ip}:8000/health
           }
 
           # Showcase routing (strip prefix, forward to container)

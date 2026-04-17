@@ -2,7 +2,7 @@
 # Scaleway Medical AI Workshop - Per-student JupyterLab host
 #
 # Provisions a single instance with JupyterLab behind Caddy (HTTPS),
-# namespaced by student_id. Cloud-init installs all dependencies and
+# Namespaced by project_id. Cloud-init installs all dependencies and
 # starts JupyterLab as a systemd service.
 ################################################################################
 
@@ -31,9 +31,11 @@ provider "scaleway" {
 }
 
 locals {
-  name_prefix = "workshop-${var.student_id}"
-  common_tags = ["workshop", "medical-lab", var.student_id]
-  tls_enabled = var.domain_name != ""
+  project_suffix   = substr(var.project_id, 0, 8)
+  name_prefix      = "workshop-${local.project_suffix}"
+  common_tags      = ["workshop", "medical-lab", local.project_suffix]
+  sslip_domain     = "${replace(scaleway_instance_ip.workshop.address, ".", "-")}.sslip.io"
+  effective_domain = var.domain_name != "" ? var.domain_name : local.sslip_domain
 }
 
 # ---- Random JupyterLab access token ----------------------------------------
@@ -51,7 +53,7 @@ resource "random_password" "jupyter_token" {
 
 resource "scaleway_iam_application" "workshop" {
   name        = "${local.name_prefix}-jupyter"
-  description = "Scoped credentials for workshop Jupyter instance (${var.student_id})"
+  description = "Scoped credentials for workshop Jupyter instance (${local.project_suffix})"
 }
 
 resource "scaleway_iam_api_key" "workshop" {
@@ -142,9 +144,8 @@ resource "scaleway_instance_server" "workshop" {
       scw_project_id      = var.project_id
       scw_region          = var.region
       scw_zone            = var.zone
-      student_id          = var.student_id
-      domain_name         = var.domain_name
-      tls_enabled         = local.tls_enabled
+      project_suffix      = local.project_suffix
+      effective_domain    = local.effective_domain
       workshop_repo_url   = var.workshop_repo_url
     })
   }

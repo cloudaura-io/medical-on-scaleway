@@ -15,8 +15,8 @@ output "base_url" {
 }
 
 output "domain_name" {
-  description = "Domain name for the workshop (empty if HTTP-only)"
-  value       = var.domain_name
+  description = "Effective domain name (custom domain or sslip.io auto-derived)"
+  value       = local.effective_domain
 }
 
 output "landing_url" {
@@ -44,8 +44,8 @@ output "showcase3_url" {
 output "ssh_commands" {
   description = "SSH commands for accessing instances via LB"
   value = {
-    app = "ssh -p 2201 root@${local.tls_enabled ? var.domain_name : scaleway_lb_ip.main.ip_address}"
-    gpu = "ssh -p 2202 root@${local.tls_enabled ? var.domain_name : scaleway_lb_ip.main.ip_address}"
+    app = "ssh -p 2201 root@${local.effective_domain}"
+    gpu = "ssh -p 2202 root@${local.effective_domain}"
   }
 }
 

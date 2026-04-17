@@ -16,10 +16,10 @@ A Scaleway account with API keys is required to run the showcases. [Register for
 
 ## Architecture
 
-Everything runs inside a **Scaleway VPC** with a single **HTTPS entry point** at `https://lab.cloudaura.io`. TLS is terminated at the Load Balancer. Caddy handles path-based routing on the app instance. No public IPs on any compute instance - all outbound goes through a NAT gateway.
+Everything runs inside a **Scaleway VPC** with a single **HTTPS entry point**. TLS is terminated at the Load Balancer via Let's Encrypt. Caddy handles path-based routing on the app instance. No public IPs on any compute instance - all outbound goes through a NAT gateway.
 
 ```
-https://lab.cloudaura.io
+https://<domain>
          |
     Load Balancer (LB-S, Let's Encrypt)
     |   :443 HTTPS (all user traffic)
@@ -127,12 +127,11 @@ One-time bootstrap required before any `tofu` commands work. Skip if you already
    secret_key      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # step 3
    organization_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # step 4
    project_id      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # step 4
-
-   student_id  = "student-01"        # any unique lowercase id; namespaces all resources
-   domain_name = "lab.cloudaura.io"  # optional - comment out for HTTP-only
    ```
 
    **`workshop/infrastructure/terraform.tfvars`** (only if running the workshop track — same four credentials, plus `ssh_public_key` from `cat ~/.ssh/id_ed25519.pub`).
+
+   Resource names are auto-derived from `project_id` (first 8 chars) — no manual naming needed.
 
 6. **Request quotas** (new accounts start with 0 GPU capacity). Console → **Support → Account → Quotas**, request:
    - L4-1-24G GPU instances: **1**
@@ -143,52 +142,39 @@ One-time bootstrap required before any `tofu` commands work. Skip if you already
 
 ## Quick start
 
-### Automated setup (recommended)
+### Showcases (main lab)
 
 ```bash
-bash scripts/setup.sh
-```
-
-Provisions infrastructure, builds and pushes Docker images, generates `.env`, and waits for services to come online. Database schema is created automatically by the backend on first request.
-
-### Manual setup
-
-```bash
-# 1. Provision infrastructure
 cp infrastructure/terraform.tfvars.example infrastructure/terraform.tfvars
-# Edit with your Scaleway credentials
-cd infrastructure && tofu init && tofu apply
+# Edit with your 4 Scaleway credentials (see First-time setup above)
 
-# 2. Set up DNS: A record lab.cloudaura.io -> LB IP (tofu output lb_public_ip)
-#    Cloudflare proxy must be OFF (DNS-only) for Let's Encrypt
-
-# 3. Build and push Docker images
-bash scripts/build-push-images.sh
-
-# 4. Generate local .env
-bash scripts/generate-env.sh
-
-# 5. Seed the knowledge base (after app instance boots)
-ssh -i ~/.ssh/id_ed25519_scaleway -p 2201 root@lab.cloudaura.io \
-  docker compose -f /opt/app/docker-compose.yaml exec showcase2 \
-  python scripts/load-knowledge-base.py
+bash scripts/deploy.sh      # provisions ~34 resources, builds Docker images, waits for health
+bash scripts/destroy.sh     # tears down everything
 ```
 
-### Access
+The deploy script handles `tofu init`, `tofu apply`, Docker image build+push, and health polling. When it finishes, it prints the URLs for all three showcases.
 
-```
-https://lab.cloudaura.io/                        Landing page
-https://lab.cloudaura.io/consultation-assistant/  Consultation Assistant
-https://lab.cloudaura.io/document-intelligence/   Document Intelligence
-https://lab.cloudaura.io/research-agent/          Research Agent
-```
-
-### SSH (debugging)
+### Workshop (per-student JupyterLab)
 
 ```bash
-ssh -i ~/.ssh/id_ed25519_scaleway -p 2201 root@lab.cloudaura.io   # app instance
-ssh -i ~/.ssh/id_ed25519_scaleway -p 2202 root@lab.cloudaura.io   # GPU instance
+cp workshop/infrastructure/terraform.tfvars.example workshop/infrastructure/terraform.tfvars
+# Edit with your 4 Scaleway credentials + ssh_public_key
+
+bash workshop/scripts/deploy.sh      # provisions instance, waits for health, prints JupyterLab URL
+bash workshop/scripts/destroy.sh     # tears down everything
 ```
+
+### TLS / domain name
+
+By default, `domain_name` is empty and the lab auto-generates a free HTTPS domain using [sslip.io](https://sslip.io/) — a public DNS service that maps any IP address to a hostname (e.g. `<your-lb-ip-with-dashes>.sslip.io`). Let's Encrypt issues a certificate automatically. No DNS configuration needed.
+
+To use a custom domain instead, set `domain_name` in your `terraform.tfvars`:
+
+```hcl
+domain_name = "lab.example.com"
+```
+
+With a custom domain, `tofu apply` will fail at the certificate step until a DNS A record points your domain to the Load Balancer IP. Check `tofu output lb_public_ip` for the IP, create the A record, then re-run `tofu apply`.
 
 ### Redeploy after code changes
 

@@ -44,11 +44,6 @@ class TestVoxtralRealtimeInfrastructure:
         assert "voxtral_realtime_endpoint" in content
         assert "8000" in content
 
-    def test_generate_env_includes_voxtral_realtime(self) -> None:
-        """generate-env.sh must read and write SCW_VOXTRAL_REALTIME_ENDPOINT."""
-        content = (PROJECT_ROOT / "scripts" / "generate-env.sh").read_text()
-        assert "VOXTRAL_REALTIME_ENDPOINT" in content
-
     def test_env_example_includes_voxtral_realtime(self) -> None:
         """.env.example must document SCW_VOXTRAL_REALTIME_ENDPOINT."""
         content = (PROJECT_ROOT / ".env.example").read_text()

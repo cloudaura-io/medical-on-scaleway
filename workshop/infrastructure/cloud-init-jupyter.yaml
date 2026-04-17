@@ -18,7 +18,7 @@ write_files:
       SCW_DEFAULT_PROJECT_ID=${scw_project_id}
       SCW_DEFAULT_REGION=${scw_region}
       SCW_DEFAULT_ZONE=${scw_zone}
-      STUDENT_ID=${student_id}
+      PROJECT_SUFFIX=${project_suffix}
       JUPYTER_TOKEN=${jupyter_token}
 
   # -- JupyterLab systemd service ----------------------------------------------
@@ -87,7 +87,7 @@ runcmd:
   # -- Clone workshop repo (if URL provided) -----------------------------------
   - |
     if [ -n "${workshop_repo_url}" ]; then
-      su - jupyter -c "git clone -b workshop ${workshop_repo_url} /home/jupyter/repo"
+      su - jupyter -c "git clone ${workshop_repo_url} /home/jupyter/repo"
       ln -sf /home/jupyter/repo/workshop /home/jupyter/workshop
     else
       mkdir -p /home/jupyter/workshop/notebooks /home/jupyter/workshop/notebooks_solutions /home/jupyter/workshop/data /home/jupyter/workshop/iac_snippets /home/jupyter/workshop/src /home/jupyter/workshop/scripts
@@ -97,16 +97,21 @@ runcmd:
   - cp /home/jupyter/.env /home/jupyter/workshop/.env 2>/dev/null || true
   - chown -R jupyter:jupyter /home/jupyter
 
-  # -- Write Caddyfile ----------------------------------------------------------
-  # tls_enabled=true: Caddy obtains a Let's Encrypt cert for ${domain_name}
-  #                   (requires DNS A record pointing at this instance's public IP).
-  # tls_enabled=false: plain HTTP on :80, no cert.
   - |
-    if [ "${tls_enabled}" = "true" ]; then
-      printf '%s\n' '${domain_name} {' '  reverse_proxy localhost:8888' '}' > /etc/caddy/Caddyfile
-    else
-      printf '%s\n' ':80 {' '  reverse_proxy localhost:8888' '}' > /etc/caddy/Caddyfile
-    fi
+    cat > /etc/caddy/Caddyfile <<'CADDYEOF'
+    ${effective_domain} {
+      handle /healthz {
+        respond "OK" 200
+      }
+      reverse_proxy localhost:8888
+    }
+    :80 {
+      handle /healthz {
+        respond "OK" 200
+      }
+      reverse_proxy localhost:8888
+    }
+    CADDYEOF
 
   # -- Start services ----------------------------------------------------------
   - systemctl daemon-reload

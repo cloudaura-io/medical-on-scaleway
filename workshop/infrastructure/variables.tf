@@ -27,16 +27,6 @@ variable "project_id" {
   type        = string
 }
 
-variable "student_id" {
-  description = "Unique student identifier used to namespace all resources (e.g. stv0r)"
-  type        = string
-
-  validation {
-    condition     = can(regex("^[a-z0-9-]+$", var.student_id))
-    error_message = "student_id must contain only lowercase letters, numbers, and hyphens."
-  }
-}
-
 variable "region" {
   description = "Scaleway region"
   type        = string

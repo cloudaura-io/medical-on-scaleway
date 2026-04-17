@@ -4,7 +4,7 @@
 
 output "jupyter_url" {
   description = "Full JupyterLab URL with access token"
-  value       = var.domain_name != "" ? "https://${var.domain_name}/lab?token=${random_password.jupyter_token.result}" : "http://${scaleway_instance_ip.workshop.address}/lab?token=${random_password.jupyter_token.result}"
+  value       = "https://${local.effective_domain}/lab?token=${random_password.jupyter_token.result}"
   sensitive   = true
 }
 
@@ -24,7 +24,7 @@ output "jupyter_token" {
   sensitive   = true
 }
 
-output "student_id" {
-  description = "Student identifier used for resource namespacing"
-  value       = var.student_id
+output "project_suffix" {
+  description = "Project-derived suffix used for resource namespacing"
+  value       = local.project_suffix
 }

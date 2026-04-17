@@ -4,13 +4,12 @@ secret_key      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 organization_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 project_id      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-# Student identifier (lowercase, hyphens OK)
-student_id = "student-01"
-
 # SSH public key (paste the contents of ~/.ssh/id_ed25519.pub)
 ssh_public_key = "ssh-ed25519 AAAA..."
 
-# Optional: domain name for Let's Encrypt TLS (leave empty for self-signed)
+# Custom domain name (optional).
+# When set: uses your domain for TLS (requires DNS A record pointing at instance IP).
+# When empty (default): auto-generates a sslip.io domain for free TLS.
 # domain_name = "workshop-student01.example.com"
 
 # Optional: Git repo URL to clone on the instance
