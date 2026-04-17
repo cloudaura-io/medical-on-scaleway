@@ -110,7 +110,7 @@ class TestSafeStreamingWrapper:
 
         async def failing_generator():
             yield 'data: {"event": "step1"}\n\n'
-            raise RuntimeError("OCR processing failed")
+            raise RuntimeError("Vision processing failed")
 
         async def collect():
             results = []
@@ -129,7 +129,7 @@ class TestSafeStreamingWrapper:
         # Second event is the error
         error_payload = json.loads(results[1][len("data: ") : -2])
         assert error_payload["event"] == "error"
-        assert "OCR processing failed" in error_payload["detail"]
+        assert "Vision processing failed" in error_payload["detail"]
 
     def test_handles_generator_with_no_events_before_error(self) -> None:
         """safe_streaming_wrapper() must handle immediate failure."""

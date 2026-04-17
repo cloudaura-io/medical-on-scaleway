@@ -60,7 +60,7 @@ write_files:
         <script>
           var showcases = [
             {path: "consultation-assistant", num: "01", name: "Consultation Assistant", desc: "Real-time medical transcription and clinical data extraction"},
-            {path: "document-intelligence", num: "02", name: "Document Intelligence", desc: "Medical document OCR, vector indexing, and RAG Q&A"},
+            {path: "document-intelligence", num: "02", name: "Document Intelligence", desc: "Medical document vision extraction, vector indexing, and RAG Q&A"},
             {path: "drug-interactions", num: "03", name: "Drug Interactions", desc: "FDA-grounded drug interaction checker with ReAct agent"}
           ];
           var el = document.getElementById("links");

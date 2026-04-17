@@ -3,7 +3,7 @@ Showcase 2 - Medical Document Intelligence
 
 FastAPI backend that orchestrates:
   1. PDF upload
-  2. OCR via Mistral Small 3.2 vision (page-by-page with SSE progress)
+  2. Vision extraction via Mistral Small 3.2 (page-by-page with SSE progress)
   3. Chunking + embedding into pgvector via RAG pipeline
   4. Natural-language queries with cited responses
 
@@ -138,7 +138,7 @@ async def upload_document(file: UploadFile = File(...)):
 
 @app.post("/api/process/{doc_id}")
 async def process_document(doc_id: str):
-    """Run vision OCR on each page and index via RAG.  Returns SSE stream."""
+    """Run vision extraction on each page and index via RAG.  Returns SSE stream."""
     if doc_id not in _documents:
         raise HTTPException(status_code=404, detail="Document not found.")
 

@@ -6,11 +6,11 @@ Workshop materials for a **[Scaleway](https://www.scaleway.com/) x [cloudaura.io
 
 Three self-contained showcase applications, each demonstrating a different Scaleway AI capability applied to healthcare:
 
-| # | Showcase | What it does | Scaleway services | Mistral models |
-|---|----------|-------------|-------------------|----------------|
-| 1 | **Consultation Assistant** | Transcribes doctor-patient conversations (file upload or realtime WebSocket streaming) and extracts structured clinical data | Generative APIs, GPU Instance (L4 + vLLM) | Voxtral (STT), Voxtral Mini 4B Realtime (streaming STT), Mistral Small 3.2 (extraction) |
-| 2 | **Document Intelligence** | OCR on scanned medical documents, indexes them, answers questions with citations | Generative APIs, Managed Inference, PostgreSQL + pgvector, Object Storage | Mistral Small 3.2 (vision/OCR), BGE (embeddings) |
-| 3 | **Research Agent** | Searches across pharmacology, cardiology, and clinical trial databases to answer complex medical questions | Generative APIs, Managed Inference, PostgreSQL + pgvector | Mistral Small 3.2 (agent + tool calling), BGE (embeddings) |
+| # | Showcase | What it does | Scaleway services | Models |
+|---|----------|-------------|-------------------|--------|
+| 1 | **[Consultation Assistant](https://github.com/cloudaura-io/medical-on-scaleway/tree/main/01_consultation_assistant)** | Transcribes doctor-patient conversations (file upload or realtime WebSocket streaming) and extracts structured clinical data | Generative APIs, GPU Instance (L4 + vLLM) | Voxtral Small 24B (STT), Voxtral Mini 4B Realtime (streaming STT), Mistral Small 3.2 24B (extraction) |
+| 2 | **[Document Intelligence](https://github.com/cloudaura-io/medical-on-scaleway/tree/main/02_document_intelligence)** | Vision extraction on scanned medical documents, indexes them, answers questions with citations | Generative APIs, Managed Inference, PostgreSQL + pgvector, Object Storage | Mistral Small 3.2 24B (vision + answers), Qwen3 Embedding 8B (embeddings) |
+| 3 | **[Drug Interactions](https://github.com/cloudaura-io/medical-on-scaleway/tree/main/03_drug_interactions)** | ReAct agent that analyzes drug-drug and drug-population interactions against openFDA drug labels with cited evidence | Generative APIs, Managed Inference, PostgreSQL + pgvector | Mistral Small 3.2 24B (agent + tool calling), Qwen3 Embedding 8B (embeddings) |
 
 A Scaleway account with API keys is required to run the showcases. [Register for a free Scaleway account](https://account.scaleway.com/register) to get free credits.
 
@@ -27,7 +27,7 @@ https://<domain>
     |   :2201 SSH  (app instance, TCP passthrough)
     |   :2202 SSH  (GPU instance, TCP passthrough)
          |
-    VPC / Private Network 172.16.32.0/22
+    VPC / Private Network <vpc-cidr>  (defined in infrastructure/main.tf)
     |
     |-- NAT Gateway (VPC-GW-S) -- outbound internet for all instances
     |
@@ -36,13 +36,14 @@ https://<domain>
     |   /                         -> landing page
     |   /consultation-assistant/* -> FastAPI :8001
     |   /document-intelligence/*  -> FastAPI :8002
-    |   /research-agent/*         -> FastAPI :8003
+    |   /drug-interactions/*      -> FastAPI :8003
     |       |               |              |
     |       v               v              v
     |-- PostgreSQL      Managed        GPU Instance
     |   + pgvector      Inference      L4-1-24G
-    |   :5432           BGE emb.       vLLM :8000
-    |   (private)       (private)      (private)
+    |   DB-DEV-S        Qwen3 emb.     vLLM :8000
+    |   :5432           L4 GPU         Voxtral Mini
+    |   (private)       (private)      4B Realtime
     |
     External (via NAT gateway):
     Object Storage (S3)  |  Generative APIs  |  Container Registry
@@ -50,16 +51,16 @@ https://<domain>
 
 ### Network security model
 
-All instances have **no public IP**. Outbound internet goes through the NAT gateway. Security groups on each instance restrict inbound to the VPC CIDR (`172.16.32.0/22`) - only the Load Balancer (on the private network) can reach application ports. SSH access is via LB TCP passthrough on ports 2201 (app) and 2202 (GPU).
+All instances have **no public IP**. Outbound internet goes through the NAT gateway. Security groups on each instance restrict inbound to the VPC CIDR (defined in `infrastructure/main.tf`) - only the Load Balancer (on the private network) can reach application ports. SSH access is via LB TCP passthrough on ports 2201 (app) and 2202 (GPU).
 
 ### AI services
 
 | Service | Managed by | Infrastructure | Model | Params | Purpose |
 |---------|-----------|----------------|-------|--------|---------|
-| **Generative APIs** | Scaleway (serverless) | Shared, pay-per-token | Mistral Small 3.2 | 24B | Chat, extraction, vision/OCR, agent tool calling |
-| **Generative APIs** | Scaleway (serverless) | Shared, pay-per-token | Voxtral Small | 24.3B | Speech-to-text (file upload mode) |
-| **Managed Inference** | Scaleway (dedicated) | Dedicated L4 GPU | BGE Multilingual Gemma2 | ~9B | Text embeddings (3584-dim) for RAG |
-| **Self-hosted vLLM** | You (raw GPU VM) | Dedicated L4 GPU | Voxtral Mini 4B Realtime | 4B | Real-time streaming STT via WebSocket |
+| **Generative APIs** | Scaleway (serverless) | Shared, pay-per-token | `mistral-small-3.2-24b-instruct-2506` | 24B | Chat, extraction, vision (document text + layout), agent tool calling |
+| **Generative APIs** | Scaleway (serverless) | Shared, pay-per-token | `voxtral-small-24b-2507` | 24.3B | Speech-to-text (file upload mode, diarized) |
+| **Managed Inference** | Scaleway (dedicated) | Dedicated L4 GPU | `qwen3-embedding-8b` | 8B | Text embeddings (768-dim) for RAG |
+| **Self-hosted vLLM** | You (raw GPU VM) | Dedicated L4-1-24G GPU | `Voxtral-Mini-4B-Realtime-2602` | 4B | Real-time streaming STT via WebSocket |
 
 ### Docker deployment flow
 
@@ -77,27 +78,30 @@ Cloud-init retries `docker compose pull` every 30 seconds until images become av
 
 #### Consultation Assistant
 
-Audio -> Generative APIs (Voxtral STT) -> transcript -> Generative APIs (Mistral) -> clinical JSON. Live mic mode streams via WebSocket to the GPU vLLM instance on the private network.
+Audio -> Generative APIs (Voxtral Small STT) -> transcript -> Generative APIs (Mistral Small 3.2) -> clinical JSON. Live mic mode streams via WebSocket to the GPU vLLM instance (Voxtral Mini 4B Realtime) on the private network.
 
 ![Consultation Assistant architecture](docs/usecase1.webp)
+![Consultation Assistant UI](docs/transcription_example.png)
 
-> **Models:** Voxtral Small (24.3B) · Voxtral Mini 4B Realtime (4B) · Mistral Small 3.2 (24B)
+> **Models:** Voxtral Small 24B · Voxtral Mini 4B Realtime · Mistral Small 3.2 24B
 
 #### Document Intelligence
 
-PDF -> Object Storage (S3 via NAT) -> Generative APIs (Mistral vision/OCR) -> Managed Inference (BGE embeddings, private) -> PostgreSQL pgvector (private) -> Generative APIs (Mistral cited answer).
+PDF -> Object Storage (S3 via NAT) -> Generative APIs (Mistral Small 3.2 vision) -> Managed Inference (Qwen3 embeddings, private) -> PostgreSQL pgvector (private) -> Generative APIs (Mistral Small 3.2 cited answer).
 
 ![Document Intelligence architecture](docs/usecase2.webp)
+![Document Intelligence UI](docs/document_example.png)
 
-> **Models:** Mistral Small 3.2 (24B) · BGE Multilingual Gemma2 (~9B)
+> **Models:** Mistral Small 3.2 24B · Qwen3 Embedding 8B (768-dim)
 
-#### Research Agent
+#### Drug Interactions
 
-Query -> Generative APIs (Mistral agent + tool calling) -> Managed Inference (BGE, private) + pgvector (private) -> verified answer.
+Medications + population -> Generative APIs (Mistral Small 3.2 ReAct agent + tool calling) -> Managed Inference (Qwen3 embeddings, private) + pgvector (private, seeded with openFDA drug labels) -> cited, severity-ranked findings streamed via SSE.
 
-![Research Agent architecture](docs/usecase3.webp)
+![Drug Interactions architecture](docs/usecase3.webp)
+![Drug Interactions UI](docs/drug_interactions.png)
 
-> **Models:** Mistral Small 3.2 (24B) · BGE Multilingual Gemma2 (~9B)
+> **Models:** Mistral Small 3.2 24B · Qwen3 Embedding 8B (768-dim)
 
 ## First-time Scaleway account setup
 

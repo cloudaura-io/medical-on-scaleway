@@ -441,7 +441,7 @@
     function showDocumentPreview(file) {
         currentPreviewFile = file || null;
 
-        // Always render the OCR text into the text pane (ready when user toggles).
+        // Always render the extracted vision text into the text pane (ready when user toggles).
         if (file && file.pageTexts && file.pageTexts.length > 0) {
             const text = file.pageTexts.map(p =>
                 `--- Page ${p.page} ---\n${p.text}`
