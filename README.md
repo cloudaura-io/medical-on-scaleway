@@ -74,34 +74,37 @@ A single `Dockerfile` builds one image for all three showcases. It's tagged thre
 
 Cloud-init retries `docker compose pull` every 30 seconds until images become available (they're pushed after `tofu apply` completes).
 
-### How each showcase connects
+### Per-showcase architecture
 
 #### Consultation Assistant
 
 Audio -> [Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) ([Voxtral Small](https://www.scaleway.com/en/docs/generative-apis/reference-content/supported-models/) STT) -> transcript -> Generative APIs ([Mistral Small 3.2](https://www.scaleway.com/en/docs/generative-apis/reference-content/supported-models/)) -> clinical JSON. Live mic mode streams via WebSocket to the [GPU](https://www.scaleway.com/en/docs/gpu/) vLLM instance (Voxtral Mini 4B Realtime) on the [private network](https://www.scaleway.com/en/docs/vpc/).
 
 ![Consultation Assistant architecture](docs/usecase1.webp)
-![Consultation Assistant UI](docs/transcription_example.png)
 
 > **Models:** Voxtral Small 24B · Voxtral Mini 4B Realtime · Mistral Small 3.2 24B
+
+![Consultation Assistant UI](docs/transcription_example.png)
 
 #### Document Intelligence
 
 PDF -> [Object Storage](https://www.scaleway.com/en/docs/object-storage/) (S3 via [NAT](https://www.scaleway.com/en/docs/public-gateways/)) -> [Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) ([Mistral Small 3.2](https://www.scaleway.com/en/docs/generative-apis/reference-content/supported-models/) vision) -> [Managed Inference](https://www.scaleway.com/en/docs/managed-inference/) ([Qwen3 embeddings](https://www.scaleway.com/en/docs/managed-inference/reference-content/model-catalog/), private) -> [PostgreSQL](https://www.scaleway.com/en/docs/managed-databases-for-postgresql-and-mysql/) pgvector (private) -> Generative APIs (Mistral Small 3.2 cited answer).
 
 ![Document Intelligence architecture](docs/usecase2.webp)
-![Document Intelligence UI](docs/document_example.png)
 
 > **Models:** Mistral Small 3.2 24B · Qwen3 Embedding 8B (768-dim)
+
+![Document Intelligence UI](docs/document_example.png)
 
 #### Drug Interactions
 
 Medications + population -> [Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) ([Mistral Small 3.2](https://www.scaleway.com/en/docs/generative-apis/reference-content/supported-models/) ReAct agent + tool calling) -> [Managed Inference](https://www.scaleway.com/en/docs/managed-inference/) ([Qwen3 embeddings](https://www.scaleway.com/en/docs/managed-inference/reference-content/model-catalog/), private) + [pgvector](https://www.scaleway.com/en/docs/managed-databases-for-postgresql-and-mysql/) (private, seeded with openFDA drug labels) -> cited, severity-ranked findings streamed via SSE.
 
 ![Drug Interactions architecture](docs/usecase3.webp)
-![Drug Interactions UI](docs/drug_interactions.png)
 
 > **Models:** Mistral Small 3.2 24B · Qwen3 Embedding 8B (768-dim)
+
+![Drug Interactions UI](docs/drug_interactions.png)
 
 ## First-time Scaleway account setup
 
