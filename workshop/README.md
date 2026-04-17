@@ -132,7 +132,7 @@ purposes only.
    cd workshop/infrastructure && tofu destroy
    ```
 3. **Verify:** Check the Scaleway console. No resources matching your
-   student_id should remain.
+   project_suffix should remain.
 
 ## Optional: Restrict Access to Venue IP
 

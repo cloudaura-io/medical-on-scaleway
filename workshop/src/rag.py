@@ -10,6 +10,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from pgvector.psycopg import register_vector
+from psycopg.rows import dict_row
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -42,9 +45,14 @@ CREATE INDEX IF NOT EXISTS idx_chunks_embedding
 def create_table(conn: Any) -> None:
     """Create the chunks table and vector index if they do not exist.
 
+    Also registers the pgvector type adapter on the connection so that
+    `list[float]` parameters bind as pgvector `vector` values.
+
     Args:
-        conn: A psycopg connection object.
+        conn: A psycopg connection object. The `vector` extension must
+            already be enabled on the database.
     """
+    register_vector(conn)
     with conn.cursor() as cur:
         cur.execute(CREATE_TABLE_SQL)
         cur.execute(CREATE_INDEX_SQL)
@@ -145,7 +153,7 @@ def similarity_search(
         LIMIT %(k)s
     """
 
-    with conn.cursor() as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(sql, params)
         rows = cur.fetchall()
 

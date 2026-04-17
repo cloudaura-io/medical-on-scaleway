@@ -23,7 +23,7 @@ provider "scaleway" {
 }
 
 resource "scaleway_inference_deployment" "bge" {
-  name      = "workshop-${var.student_id}-bge"
+  name      = "workshop-${var.project_suffix}-bge"
   node_type = "L4-1-24G"
   model_id  = "baai/bge-multilingual-gemma2:fp16"
 
@@ -31,5 +31,5 @@ resource "scaleway_inference_deployment" "bge" {
     is_enabled = true
   }
 
-  tags = ["workshop", "medical-lab", var.student_id]
+  tags = ["workshop", "medical-lab", var.project_suffix]
 }
