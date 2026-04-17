@@ -83,7 +83,7 @@ def validate_config(
 def get_generative_client():
     """OpenAI client pointing at Scaleway Generative APIs.
 
-    Used for chat completion, vision/OCR (Mistral Small 3.2), and STT (Voxtral).
+    Used for chat completion, vision (Mistral Small 3.2), and STT (Voxtral).
     """
     from openai import OpenAI
 
@@ -188,7 +188,7 @@ def get_s3_bucket() -> str:
 # Model constants (single source of truth)
 # ---------------------------------------------------------------------------
 
-CHAT_MODEL = "mistral-small-3.2-24b-instruct-2506"  # also handles vision/OCR
+CHAT_MODEL = "mistral-small-3.2-24b-instruct-2506"  # also handles vision
 STT_MODEL = "voxtral-small-24b-2507"
 VISION_MODEL = CHAT_MODEL  # pixtral-12b-2409 is deprecated; Mistral Small 3.2 has native vision
 EMBEDDING_MODEL = "qwen3-embedding-8b"

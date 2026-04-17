@@ -53,8 +53,8 @@ def create_embedding(text: str) -> list[float]:
 # ---------------------------------------------------------------------------
 
 
-# Reject chunks shorter than this. OCR of medical PDFs produces many
-# tiny artifacts (page numbers like "1", footer lines, lone table cells)
+# Reject chunks shorter than this. Vision extraction of medical PDFs produces
+# many tiny artifacts (page numbers like "1", footer lines, lone table cells)
 # that get embedded as near-random vectors and pollute top-k retrieval.
 MIN_CHUNK_LEN = 50
 

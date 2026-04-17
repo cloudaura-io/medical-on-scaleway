@@ -1,5 +1,5 @@
 """
-OCR via Mistral Small 3.2 vision on Scaleway Generative APIs.
+Document vision extraction via Mistral Small 3.2 on Scaleway Generative APIs.
 
 Supports single images (bytes) and multi-page PDFs.
 """
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _OCR_SYSTEM_PROMPT = """\
-You are a medical document OCR system.  Extract ALL text from the provided
+You are a medical document vision system.  Extract ALL text from the provided
 image exactly as it appears.  Preserve:
 - Headings, section labels, and list structure.
 - Table layout (use Markdown tables).
@@ -56,7 +56,7 @@ def extract_text_from_image(image_bytes: bytes, mime_type: str = "image/png") ->
     logger.debug("Base64-encoded image length=%d chars", len(b64))
 
     client = get_generative_client()
-    logger.debug("Sending OCR request to model=%s, max_tokens=16384", VISION_MODEL)
+    logger.debug("Sending vision request to model=%s, max_tokens=16384", VISION_MODEL)
     response = client.chat.completions.create(
         model=VISION_MODEL,
         messages=[
