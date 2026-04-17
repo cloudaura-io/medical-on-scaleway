@@ -300,19 +300,21 @@ resource "scaleway_instance_server" "app" {
 
   user_data = {
     cloud-init = templatefile("${path.module}/cloud-init-app.yaml", {
-      scw_secret_key     = var.secret_key
-      scw_access_key     = var.access_key
-      scw_project_id     = var.project_id
-      registry_namespace = scaleway_registry_namespace.main.name
-      db_host            = scaleway_rdb_instance.medical_db.private_network[0].ip
-      db_port            = scaleway_rdb_instance.medical_db.private_network[0].port
-      db_password        = random_password.db_password.result
-      db_user            = scaleway_rdb_user.lab_user.name
-      db_name            = scaleway_rdb_database.medical_knowledge.name
-      inference_endpoint = "${scaleway_inference_deployment.embedding.private_endpoint[0].url}/v1"
-      voxtral_private_ip = scaleway_ipam_ip.gpu.address
-      s3_bucket          = scaleway_object_bucket.medical_docs.name
-      tls_enabled        = local.tls_enabled
+      scw_secret_key       = var.secret_key
+      scw_access_key       = var.access_key
+      scw_project_id       = var.project_id
+      registry_namespace   = scaleway_registry_namespace.main.name
+      db_host              = scaleway_rdb_instance.medical_db.private_network[0].ip
+      db_port              = scaleway_rdb_instance.medical_db.private_network[0].port
+      db_password          = random_password.db_password.result
+      db_user              = scaleway_rdb_user.lab_user.name
+      db_name              = scaleway_rdb_database.medical_knowledge.name
+      inference_endpoint   = "${scaleway_inference_deployment.embedding.private_endpoint[0].url}/v1"
+      inference_hostname   = replace(scaleway_inference_deployment.embedding.private_endpoint[0].url, "https://", "")
+      inference_private_ip = scaleway_inference_deployment.embedding.private_ip[0].address
+      voxtral_private_ip   = scaleway_ipam_ip.gpu.address
+      s3_bucket            = scaleway_object_bucket.medical_docs.name
+      tls_enabled          = local.tls_enabled
     })
   }
 
@@ -397,7 +399,7 @@ resource "scaleway_instance_private_nic" "voxtral_gpu" {
 #   /                         -> landing page
 #   /consultation-assistant/* -> showcase1 :8001
 #   /document-intelligence/*  -> showcase2 :8002
-#   /research-agent/*         -> showcase3 :8003
+#   /drug-interactions/*      -> showcase3 :8003
 #
 # SSH via TCP passthrough:
 #   Port 2201 -> app instance

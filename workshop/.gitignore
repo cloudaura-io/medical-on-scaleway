@@ -1,0 +1,18 @@
+# OpenTofu / Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+terraform.tfvars
+*.auto.tfvars
+tfplan
+*.tfplan
+
+# Secrets / env
+.env
+
+# Python / notebook ephemera
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/

@@ -37,12 +37,17 @@
         statusChunks:     $('#status-chunks'),
         statusDocs:       $('#status-docs'),
         statusDot:        $('#status-dot'),
-        aiOverlay:        $('#ai-overlay'),
-        aiScanner:        $('#ai-scanner'),
-        aiEmbeddings:     $('#ai-embeddings'),
-        aiRadar:          $('#ai-radar'),
-        embeddingsCanvas: $('#embeddings-canvas'),
+        previewTabs:      $('#preview-tabs'),
+        pdfCanvasHost:    $('#pdf-canvas-host'),
+        processStatus:    $('#process-status'),
     };
+
+    // Active tab in the document preview panel ('pdf' | 'text')
+    state.previewTab = 'pdf';
+
+    // PDF.js (window.pdfjsLib) and its worker are loaded as an ES module
+    // from index.html so that v4.x's .mjs-only cdnjs build resolves.
+    const PDF_PREVIEW_MAX_PAGES = 10;
 
     // ---- Phase Management ----
 
@@ -72,114 +77,29 @@
         }
     }
 
-    // ---- AI Animation System ----
+    // ---- Inline process status (replaces the old full-screen overlay) ----
 
-    function showAiAnimation(type) {
-        dom.aiOverlay.classList.remove('hidden');
-        dom.aiScanner.classList.add('hidden');
-        dom.aiEmbeddings.classList.add('hidden');
-        dom.aiRadar.classList.add('hidden');
+    let processStatusFadeTimer = null;
 
-        switch (type) {
-            case 'ocr':
-                dom.aiScanner.classList.remove('hidden');
-                break;
-            case 'embedding':
-                dom.aiEmbeddings.classList.remove('hidden');
-                startEmbeddingAnimation();
-                break;
-            case 'search':
-                dom.aiRadar.classList.remove('hidden');
-                break;
+    function setProcessStatus(text, kind) {
+        // kind: 'active' | 'done' | 'idle'
+        if (!dom.processStatus) return;
+        if (processStatusFadeTimer) {
+            clearTimeout(processStatusFadeTimer);
+            processStatusFadeTimer = null;
         }
-    }
-
-    function hideAiAnimation() {
-        dom.aiOverlay.classList.add('hidden');
-        stopEmbeddingAnimation();
-    }
-
-    // ---- Embedding Constellation Animation ----
-    let embeddingAnimFrame = null;
-
-    function startEmbeddingAnimation() {
-        const canvas = dom.embeddingsCanvas;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const w = canvas.width;
-        const h = canvas.height;
-
-        const particles = [];
-        const numParticles = 30;
-        const connectionDist = 60;
-
-        for (let i = 0; i < numParticles; i++) {
-            particles.push({
-                x: Math.random() * w,
-                y: Math.random() * h,
-                vx: (Math.random() - 0.5) * 0.8,
-                vy: (Math.random() - 0.5) * 0.8,
-                radius: Math.random() * 2.5 + 1,
-                alpha: Math.random() * 0.5 + 0.3,
-            });
+        if (kind === 'idle' || !text) {
+            dom.processStatus.classList.add('hidden');
+            dom.processStatus.textContent = '';
+            return;
         }
-
-        function animate() {
-            ctx.clearRect(0, 0, w, h);
-
-            // Update positions
-            for (const p of particles) {
-                p.x += p.vx;
-                p.y += p.vy;
-                if (p.x < 0 || p.x > w) p.vx *= -1;
-                if (p.y < 0 || p.y > h) p.vy *= -1;
-            }
-
-            // Draw connections
-            for (let i = 0; i < particles.length; i++) {
-                for (let j = i + 1; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < connectionDist) {
-                        const alpha = (1 - dist / connectionDist) * 0.4;
-                        ctx.beginPath();
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.strokeStyle = `rgba(140, 64, 239, ${alpha})`;
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
-                    }
-                }
-            }
-
-            // Draw particles
-            for (const p of particles) {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(140, 64, 239, ${p.alpha})`;
-                ctx.fill();
-
-                // Glow
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius * 3, 0, Math.PI * 2);
-                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * 3);
-                gradient.addColorStop(0, `rgba(140, 64, 239, ${p.alpha * 0.3})`);
-                gradient.addColorStop(1, 'rgba(140, 64, 239, 0)');
-                ctx.fillStyle = gradient;
-                ctx.fill();
-            }
-
-            embeddingAnimFrame = requestAnimationFrame(animate);
-        }
-
-        animate();
-    }
-
-    function stopEmbeddingAnimation() {
-        if (embeddingAnimFrame) {
-            cancelAnimationFrame(embeddingAnimFrame);
-            embeddingAnimFrame = null;
+        dom.processStatus.classList.remove('hidden', 'is-done', 'is-active');
+        dom.processStatus.classList.add(kind === 'done' ? 'is-done' : 'is-active');
+        dom.processStatus.textContent = text;
+        if (kind === 'done') {
+            processStatusFadeTimer = setTimeout(() => {
+                if (dom.processStatus) dom.processStatus.classList.add('hidden');
+            }, 4000);
         }
     }
 
@@ -242,13 +162,25 @@
             pages: 0,
             chunks: 0,
             pageTexts: [],
+            buffer: null,   // raw PDF bytes - kept so the QUERY phase can re-render
         };
         state.files.push(entry);
         renderFileList();
 
+        let buffer;
+        try {
+            buffer = await file.arrayBuffer();
+            entry.buffer = buffer;
+        } catch (err) {
+            entry.status = 'error';
+            renderFileList();
+            console.error('File read error:', err);
+            return;
+        }
+
         try {
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', new Blob([buffer], { type: 'application/pdf' }), file.name);
             const res = await fetch('api/upload', { method: 'POST', body: formData });
 
             if (!res.ok) {
@@ -261,12 +193,55 @@
             entry.status = 'queued';
             renderFileList();
 
-            // Auto-process
             processDocument(entry);
         } catch (err) {
             entry.status = 'error';
             renderFileList();
             console.error('Upload error:', err);
+        }
+    }
+
+    // Render a PDF (from cached ArrayBuffer) into the QUERY-phase left panel.
+    async function renderPdfIntoCanvasHost(file) {
+        const host = dom.pdfCanvasHost;
+        if (!host) return;
+        host.innerHTML = '';
+
+        if (!file || !file.buffer) {
+            host.innerHTML = '<div class="preview-empty">PDF preview unavailable for this document.</div>';
+            return;
+        }
+        if (!window.pdfjsLib) {
+            host.innerHTML = '<div class="preview-empty">PDF.js not loaded.</div>';
+            return;
+        }
+
+        try {
+            // pdf.js consumes the buffer; clone so the cached one stays usable.
+            const pdf = await window.pdfjsLib.getDocument({ data: file.buffer.slice(0) }).promise;
+            const total = pdf.numPages;
+            const renderCount = Math.min(total, PDF_PREVIEW_MAX_PAGES);
+
+            for (let pageNum = 1; pageNum <= renderCount; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 1.3 });
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                host.appendChild(canvas);
+                await page.render({ canvasContext: ctx, viewport }).promise;
+            }
+
+            if (total > renderCount) {
+                const more = document.createElement('div');
+                more.className = 'preview-more';
+                more.textContent = '+' + (total - renderCount) + ' more page(s)';
+                host.appendChild(more);
+            }
+        } catch (err) {
+            console.error('PDF preview error:', err);
+            host.innerHTML = '<div class="preview-empty">Preview failed: ' + escapeHtml(err.message || String(err)) + '</div>';
         }
     }
 
@@ -279,9 +254,7 @@
         state.processing = true;
         setPhase('process');
         renderFileList();
-
-        // Show OCR animation
-        showAiAnimation('ocr');
+        setProcessStatus('📄 Starting…', 'active');
 
         try {
             const res = await fetch(`api/process/${entry.docId}`, { method: 'POST' });
@@ -307,10 +280,10 @@
             }
         } catch (err) {
             entry.status = 'error';
+            setProcessStatus('⚠ Processing error: ' + (err.message || err), 'done');
             console.error('Process error:', err);
         }
 
-        hideAiAnimation();
         state.processing = false;
         renderFileList();
         updateStatus();
@@ -319,6 +292,10 @@
 
     function handleProcessEvent(entry, evt) {
         switch (evt.event) {
+            case 'processing_started':
+                setProcessStatus('📄 ' + (evt.filename || 'document') + ' — starting…', 'active');
+                break;
+
             case 'page_processed':
                 entry.pages = evt.total;
                 entry.pageTexts = entry.pageTexts || [];
@@ -326,14 +303,18 @@
                     page: evt.page,
                     text: evt.text,
                 });
+                setProcessStatus(`🔍 Vision model: page ${evt.page} of ${evt.total} scanned`, 'active');
                 renderFileList();
                 break;
 
+            case 'indexing_started':
+                setProcessStatus('🧩 Chunking text + 📐 generating embeddings…', 'active');
+                break;
+
             case 'indexing_complete':
-                // Switch to embedding animation
-                showAiAnimation('embedding');
                 entry.chunks = evt.chunks;
                 state.chunksIndexed += evt.chunks;
+                setProcessStatus(`✅ Indexed ${evt.chunks} chunks`, 'active');
                 updateStatus();
                 break;
 
@@ -345,11 +326,16 @@
                 renderFileList();
                 updateDocSelector();
                 updateStatus();
+                setProcessStatus(
+                    `Last processed: ${evt.filename} · ${evt.pages}p · ${evt.chunks}ch`,
+                    'done'
+                );
                 break;
 
             case 'error':
                 entry.status = 'error';
                 renderFileList();
+                setProcessStatus('⚠ ' + (evt.detail || 'processing error'), 'done');
                 break;
         }
     }
@@ -377,9 +363,6 @@
         addChatMessage('user', query);
         showTypingIndicator();
 
-        // Show radar search animation briefly
-        showAiAnimation('search');
-
         try {
             const res = await fetch('api/query', {
                 method: 'POST',
@@ -393,11 +376,9 @@
             }
 
             const data = await res.json();
-            hideAiAnimation();
             removeTypingIndicator();
             addChatMessage('assistant', data.answer, data.sources);
         } catch (err) {
-            hideAiAnimation();
             removeTypingIndicator();
             addChatMessage('assistant', `Error: ${err.message}`);
         }
@@ -453,16 +434,55 @@
         }
     }
 
+    // The currently displayed file in the preview panel — kept in module
+    // scope so tab clicks can re-render without needing the dropdown event.
+    let currentPreviewFile = null;
+
     function showDocumentPreview(file) {
-        if (!file || !file.pageTexts || file.pageTexts.length === 0) {
+        currentPreviewFile = file || null;
+
+        // Always render the OCR text into the text pane (ready when user toggles).
+        if (file && file.pageTexts && file.pageTexts.length > 0) {
+            const text = file.pageTexts.map(p =>
+                `--- Page ${p.page} ---\n${p.text}`
+            ).join('\n\n');
+            dom.extractedText.textContent = text;
+        } else {
             dom.extractedText.textContent = 'No extracted text available.';
-            return;
         }
 
-        const text = file.pageTexts.map(p =>
-            `--- Page ${p.page} ---\n${p.text}`
-        ).join('\n\n');
-        dom.extractedText.textContent = text;
+        // Render or clear the PDF pane based on whichever tab is active.
+        applyPreviewTab(state.previewTab);
+    }
+
+    function applyPreviewTab(tab) {
+        state.previewTab = tab === 'text' ? 'text' : 'pdf';
+        // Toggle button active states
+        if (dom.previewTabs) {
+            dom.previewTabs.querySelectorAll('.preview-tab').forEach(btn => {
+                const isActive = btn.dataset.tab === state.previewTab;
+                btn.classList.toggle('is-active', isActive);
+                btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+        }
+        // Toggle pane visibility
+        if (dom.pdfCanvasHost) {
+            dom.pdfCanvasHost.classList.toggle('hidden', state.previewTab !== 'pdf');
+        }
+        if (dom.extractedText) {
+            dom.extractedText.classList.toggle('hidden', state.previewTab !== 'text');
+        }
+        // Render PDF only when the PDF tab is the visible one (saves work).
+        if (state.previewTab === 'pdf' && currentPreviewFile) {
+            renderPdfIntoCanvasHost(currentPreviewFile);
+        }
+    }
+
+    function initPreviewTabs() {
+        if (!dom.previewTabs) return;
+        dom.previewTabs.querySelectorAll('.preview-tab').forEach(btn => {
+            btn.addEventListener('click', () => applyPreviewTab(btn.dataset.tab));
+        });
     }
 
     function addChatMessage(role, text, sources) {
@@ -564,6 +584,7 @@
         initUpload();
         initQuery();
         initSampleQuestions();
+        initPreviewTabs();
         setPhase('upload');
         updateStatus();
     }

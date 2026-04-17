@@ -13,6 +13,8 @@
     rel="stylesheet"
   />
 
+  <link rel="stylesheet" href="static/shared/tokens.css" />
+  <link rel="stylesheet" href="static/shared/base.css" />
   <link rel="stylesheet" href="static/style.css" />
 </head>
 <body>
@@ -20,16 +22,13 @@
   <header class="header">
     <div class="header__left">
       <div class="header__logos">
-        <img src="static/scaleway-logo.svg" alt="Scaleway" class="logo-scaleway">
-        <img src="static/cloudaura-logo.png" alt="cloudaura.io" class="logo-cloudaura">
+        <img src="static/shared/scaleway-logo.svg" alt="Scaleway" class="logo-scaleway">
+        <img src="static/shared/cloudaura-logo.png" alt="cloudaura.io" class="logo-cloudaura">
       </div>
       <div class="recording-indicator" id="recordingIndicator">
         <span class="recording-indicator__dot"></span>
         <span class="recording-indicator__label" id="recordingLabel">Idle</span>
       </div>
-    </div>
-    <div class="header__center">
-      <h1 class="header__title">CONSULTATION ASSISTANT</h1>
     </div>
     <div class="header__right">
       <!-- Mode toggle -->
@@ -59,7 +58,7 @@
     <section class="panel panel--transcript">
       <div class="panel__header">
         <h2 class="panel__title">Live Transcript</h2>
-        <span class="panel__badge" id="transcriptBadge">waiting</span>
+        <span class="badge badge--muted" id="transcriptBadge">waiting</span>
       </div>
       <div class="panel__body" id="transcriptBody">
         <p class="panel__placeholder" id="transcriptPlaceholder">
@@ -83,7 +82,7 @@
     <section class="panel panel--clinical">
       <div class="panel__header">
         <h2 class="panel__title">Clinical Note</h2>
-        <span class="panel__badge" id="clinicalBadge">pending</span>
+        <span class="badge badge--muted" id="clinicalBadge">pending</span>
       </div>
       <div class="panel__body" id="clinicalBody">
         <p class="panel__placeholder" id="clinicalPlaceholder">
