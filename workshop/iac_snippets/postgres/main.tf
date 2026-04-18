@@ -62,3 +62,10 @@ resource "scaleway_rdb_user" "workshop" {
   password    = random_password.db_password.result
   is_admin    = true
 }
+
+resource "scaleway_rdb_privilege" "workshop" {
+  instance_id   = scaleway_rdb_instance.workshop.id
+  user_name     = scaleway_rdb_user.workshop.name
+  database_name = scaleway_rdb_database.workshop.name
+  permission    = "all"
+}

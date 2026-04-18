@@ -16,11 +16,21 @@ class EmbeddingsClient:
     Args:
         client: An OpenAI-compatible client instance (e.g., openai.OpenAI).
         model: The model identifier to use for embeddings.
+        dimensions: Optional truncation. BGE Gemma2 is a Matryoshka model,
+            so the first N dims are a valid lower-dim embedding. 768 matches
+            the showcase 3 reference and fits under pgvector's 2000-dim
+            index cap.
     """
 
-    def __init__(self, client: Any, model: str) -> None:
+    def __init__(self, client: Any, model: str, dimensions: int | None = None) -> None:
         self._client = client
         self._model = model
+        self._dimensions = dimensions
+
+    def _truncate(self, vec: list[float]) -> list[float]:
+        if self._dimensions is None:
+            return vec
+        return vec[: self._dimensions]
 
     def embed(self, text: str) -> list[float]:
         """Embed a single text string.
@@ -35,7 +45,7 @@ class EmbeddingsClient:
             input=[text],
             model=self._model,
         )
-        return response.data[0].embedding
+        return self._truncate(response.data[0].embedding)
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Embed multiple texts in a single API call.
@@ -53,6 +63,5 @@ class EmbeddingsClient:
             input=texts,
             model=self._model,
         )
-        # Sort by index to ensure correct ordering
         sorted_data = sorted(response.data, key=lambda x: x.index)
-        return [item.embedding for item in sorted_data]
+        return [self._truncate(item.embedding) for item in sorted_data]

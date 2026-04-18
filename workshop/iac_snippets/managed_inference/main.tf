@@ -23,9 +23,10 @@ provider "scaleway" {
 }
 
 resource "scaleway_inference_deployment" "bge" {
-  name      = "workshop-${var.project_suffix}-bge"
-  node_type = "L4-1-24G"
-  model_id  = "baai/bge-multilingual-gemma2:fp16"
+  name        = "workshop-${var.project_suffix}-bge"
+  node_type   = "L4"
+  model_id    = "d58efec4-b667-48e2-8ad8-bcc26c175ae6"  # baai/bge-multilingual-gemma2:fp32
+  accept_eula = true
 
   public_endpoint {
     is_enabled = true
