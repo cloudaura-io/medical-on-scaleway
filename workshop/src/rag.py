@@ -31,14 +31,13 @@ CREATE TABLE IF NOT EXISTS chunks (
     manufacturer_name TEXT,
     source_url TEXT,
     text TEXT NOT NULL,
-    embedding vector(3584)
+    embedding vector(768)
 );
 """
 
 CREATE_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_chunks_embedding
-    ON chunks USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 20);
+    ON chunks USING hnsw (embedding vector_cosine_ops);
 """
 
 
