@@ -28,13 +28,12 @@ if [ ! -f "$TFVARS" ]; then
     echo "    secret_key       Scaleway API secret key (UUID)"
     echo "    organization_id  Scaleway organization ID (UUID)"
     echo "    project_id       Scaleway project ID (UUID)"
-    echo "    ssh_public_key   Contents of ~/.ssh/id_ed25519.pub"
     echo ""
     echo "  See README.md 'First-time Scaleway account setup' for details."
     exit 1
 fi
 
-REQUIRED_VARS=(access_key secret_key organization_id project_id ssh_public_key)
+REQUIRED_VARS=(access_key secret_key organization_id project_id)
 MISSING=()
 
 for var in "${REQUIRED_VARS[@]}"; do
