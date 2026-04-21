@@ -17,6 +17,7 @@ import json
 import logging
 from typing import Any
 
+from src.drug_chunker import DAILYMED_LABEL_BASE_URL
 from src.drug_rag import drug_similarity_search
 
 logger = logging.getLogger(__name__)
@@ -242,9 +243,7 @@ class ToolKit:
             "Synthesize the following drug interaction and population warning findings "
             "into a final report. Return a JSON array where each element has:\n"
             '- "claim": the finding statement\n'
-            '- "source_id": in the format "<drug_name> :: <section_type> :: <citation_id>",\n'
-            "  where <citation_id> is the non-empty set_id if present, otherwise the\n"
-            "  application_number. Never leave the third segment empty or trailing.\n"
+            '- "source_id": in the format "<drug_name> :: <section_type> :: <set_id>"\n'
             '- "evidence_snippet": a VERBATIM sentence or short passage copied from the\n'
             "  supporting label text. Do NOT paraphrase. Do NOT combine text from\n"
             "  multiple findings. The snippet MUST be copy-pasted from the same\n"
@@ -283,6 +282,14 @@ class ToolKit:
                     }
                     for f in findings
                 ]
+
+        for item in result:
+            if not isinstance(item, dict):
+                continue
+            parts = [p.strip() for p in (item.get("source_id") or "").split("::")]
+            set_id = parts[2] if len(parts) >= 3 else ""
+            if set_id:
+                item["label_url"] = f"{DAILYMED_LABEL_BASE_URL}{set_id}"
 
         return result
 
@@ -410,6 +417,7 @@ TOOL_DEFINITIONS = [
                                 "claim": {"type": "string"},
                                 "source_id": {"type": "string"},
                                 "evidence_snippet": {"type": "string"},
+                                "label_url": {"type": "string"},
                                 "severity": {"type": "string"},
                                 "source_section_type": {"type": "string"},
                             },

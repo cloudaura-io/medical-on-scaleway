@@ -23,7 +23,7 @@ def _sample_labels():
             "openfda": {
                 "generic_name": ["WARFARIN SODIUM"],
                 "brand_name": ["COUMADIN"],
-                "set_id": ["e98a2d84"],
+                "spl_set_id": ["e98a2d84"],
             },
             "drug_interactions": ["Aspirin increases bleeding risk."],
             "contraindications": ["Contraindicated in pregnancy."],
@@ -32,7 +32,7 @@ def _sample_labels():
             "openfda": {
                 "generic_name": ["IBUPROFEN"],
                 "brand_name": ["ADVIL"],
-                "set_id": ["ibu-123"],
+                "spl_set_id": ["ibu-123"],
             },
             "drug_interactions": ["Avoid with anticoagulants."],
             "pregnancy": ["Avoid in third trimester."],
@@ -104,6 +104,7 @@ class TestInitDrugDb:
                 "brand_name": "TEST",
                 "section_type": "drug_interactions",
                 "set_id": "test-id",
+                "label_url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=test-id",
                 "text": "Test text",
             }
         ]

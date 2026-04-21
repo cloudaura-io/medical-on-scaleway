@@ -34,7 +34,7 @@ def _sample_chunk():
         "set_id": "e98a2d84-c192-4d2a-b202-61a81b0c7dda",
         "application_number": "ANDA076807",
         "manufacturer_name": "Taro Pharmaceuticals",
-        "source_url": "https://api.fda.gov/drug/label.json?search=openfda.set_id:e98a2d84",
+        "label_url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=e98a2d84",
         "text": "Drugs that Increase Bleeding Risk: aspirin, ibuprofen, NSAIDs.",
         "embedding": [0.1] * 3584,
     }
@@ -141,7 +141,7 @@ class TestDrugSimilaritySearch:
                 "set_id": "e98a2d84",
                 "application_number": "ANDA076807",
                 "manufacturer_name": "Taro",
-                "source_url": "https://api.fda.gov/...",
+                "label_url": "https://api.fda.gov/...",
                 "text": "Aspirin increases bleeding risk",
                 "distance": 0.12,
             }
