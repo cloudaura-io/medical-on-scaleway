@@ -56,7 +56,7 @@ EXPECTED_METADATA_FIELDS = [
     "set_id",
     "application_number",
     "manufacturer_name",
-    "source_url",
+    "label_url",
 ]
 
 
@@ -133,7 +133,7 @@ class TestChunkGeneration:
             "openfda": {
                 "generic_name": ["TEST DRUG"],
                 "brand_name": ["TESTBRAND"],
-                "set_id": ["test-set-id"],
+                "spl_set_id": ["test-set-id"],
                 "application_number": ["NDA000000"],
                 "manufacturer_name": ["Test Corp"],
             },
@@ -145,17 +145,17 @@ class TestChunkGeneration:
         assert "boxed_warning" in section_types
         assert len(chunks) == 1, f"Expected 1 chunk for minimal label, got {len(chunks)}"
 
-    def test_source_url_format(self) -> None:
-        """source_url should point to the DailyMed/openFDA label via set_id."""
+    def test_label_url_format(self) -> None:
+        """label_url should point to the DailyMed label page via set_id."""
         from workshop.src.chunker import chunk_label
 
         label = _load_warfarin_fixture()
         chunks = chunk_label(label)
 
         for chunk in chunks:
-            assert "source_url" in chunk
-            # Should reference the set_id
-            assert chunk["set_id"] in chunk["source_url"] or "openfda" in chunk["source_url"].lower()
+            assert "label_url" in chunk
+            assert chunk["label_url"].startswith("https://dailymed.nlm.nih.gov/")
+            assert chunk["set_id"] in chunk["label_url"]
 
     def test_drug_name_from_generic_name(self) -> None:
         """drug_name should be derived from the openfda generic_name field."""

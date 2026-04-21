@@ -72,7 +72,7 @@ KEPT_METADATA_FIELDS = [
     "application_number",
     "product_ndc",
     "manufacturer_name",
-    "set_id",
+    "spl_set_id",
 ]
 
 

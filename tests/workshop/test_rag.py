@@ -39,7 +39,7 @@ def _sample_chunks() -> list[dict]:
             "set_id": "e98a2d84-c192-4d2a-b202-61a81b0c7dda",
             "application_number": "ANDA076807",
             "manufacturer_name": "Taro Pharmaceuticals",
-            "source_url": "https://api.fda.gov/drug/label.json?search=openfda.set_id:e98a2d84",
+            "label_url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=e98a2d84",
             "embedding": [0.1] * 3584,
         },
         {
@@ -51,7 +51,7 @@ def _sample_chunks() -> list[dict]:
             "set_id": "e98a2d84-c192-4d2a-b202-61a81b0c7dda",
             "application_number": "ANDA076807",
             "manufacturer_name": "Taro Pharmaceuticals",
-            "source_url": "https://api.fda.gov/drug/label.json?search=openfda.set_id:e98a2d84",
+            "label_url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=e98a2d84",
             "embedding": [0.2] * 3584,
         },
     ]

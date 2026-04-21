@@ -58,7 +58,7 @@ KEPT_OPENFDA_FIELDS: set[str] = {
     "application_number",
     "product_ndc",
     "manufacturer_name",
-    "set_id",
+    "spl_set_id",
 }
 
 # Hard-coded allowlist of 200 drugs curated for interaction richness.
@@ -306,8 +306,18 @@ MAX_RETRIES = 5
 # ---------------------------------------------------------------------------
 
 
-def _trim_result(raw_result: dict[str, Any]) -> dict[str, Any]:
-    """Trim a raw openFDA label result to only kept sections + openfda metadata."""
+def _trim_result(raw_result: dict[str, Any]) -> dict[str, Any] | None:
+    """Trim a raw openFDA label result to only kept sections + openfda metadata.
+
+    Returns ``None`` for labels missing ``openfda.spl_set_id``, since the
+    downstream pipeline uses that UUID as the canonical label identifier and
+    cannot build a citation URL without it.
+    """
+    raw_openfda = raw_result.get("openfda") or {}
+    spl_set_id = raw_openfda.get("spl_set_id") or []
+    if not spl_set_id or not spl_set_id[0]:
+        return None
+
     trimmed: dict[str, Any] = {}
 
     # Keep sections
@@ -316,13 +326,11 @@ def _trim_result(raw_result: dict[str, Any]) -> dict[str, Any]:
             trimmed[section] = raw_result[section]
 
     # Keep and trim openfda metadata block
-    if "openfda" in raw_result:
-        raw_openfda = raw_result["openfda"]
-        trimmed_openfda: dict[str, Any] = {}
-        for field in KEPT_OPENFDA_FIELDS:
-            if field in raw_openfda:
-                trimmed_openfda[field] = raw_openfda[field]
-        trimmed["openfda"] = trimmed_openfda
+    trimmed_openfda: dict[str, Any] = {}
+    for field in KEPT_OPENFDA_FIELDS:
+        if field in raw_openfda:
+            trimmed_openfda[field] = raw_openfda[field]
+    trimmed["openfda"] = trimmed_openfda
 
     return trimmed
 
@@ -362,8 +370,10 @@ def _fetch_with_query(search: str, api_key: str | None) -> dict[str, Any] | None
         if resp.status_code == 200:
             data = resp.json()
             results = data.get("results", [])
-            if results:
-                return _trim_result(results[0])
+            for raw in results:
+                trimmed = _trim_result(raw)
+                if trimmed is not None:
+                    return trimmed
             return None
 
         if resp.status_code == 429:
