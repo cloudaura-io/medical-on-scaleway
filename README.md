@@ -2,17 +2,19 @@
 
 Workshop materials for a **[Scaleway](https://www.scaleway.com/) x [cloudaura.io](https://cloudaura.io/)** hands-on session on building healthcare AI applications. The lab demonstrates how to use Scaleway's sovereign European cloud infrastructure and [Mistral AI](https://mistral.ai/) models to solve real medical use cases: speech transcription, document understanding, and multi-domain research agents. All patient data stays in Europe, on infrastructure you control.
 
+> **Attending the workshop?** Follow the [**Workshop Quickstart**](QUICKSTART.md) for a step-by-step walkthrough, creating a project, generating an API key, SSH key, and filling in `workshop/infrastructure/terraform.tfvars` to spin up a per-student JupyterLab. (To deploy the showcases lab instead, see the [First-time Scaleway account setup](#first-time-scaleway-account-setup) section below.)
+
 ## What's in this repo
 
 Three self-contained showcase applications, each demonstrating a different Scaleway AI capability applied to healthcare:
 
-| # | Showcase | What it does | Scaleway services | Models |
+| # | Showcase | Use case | Scaleway services | Models |
 |---|----------|-------------|-------------------|--------|
 | 1 | **[Consultation Assistant](https://github.com/cloudaura-io/medical-on-scaleway/tree/main/01_consultation_assistant)** | Transcribes doctor-patient conversations (file upload or realtime WebSocket streaming) and extracts structured clinical data | Generative APIs, GPU Instance (L4 + vLLM) | Voxtral Small 24B (STT), Voxtral Mini 4B Realtime (streaming STT), Mistral Small 3.2 24B (extraction) |
 | 2 | **[Document Intelligence](https://github.com/cloudaura-io/medical-on-scaleway/tree/main/02_document_intelligence)** | Vision extraction on scanned medical documents, indexes them, answers questions with citations | Generative APIs, Managed Inference, PostgreSQL + pgvector, Object Storage | Mistral Small 3.2 24B (vision + answers), Qwen3 Embedding 8B (embeddings) |
 | 3 | **[Drug Interactions](https://github.com/cloudaura-io/medical-on-scaleway/tree/main/03_drug_interactions)** | ReAct agent that analyzes drug-drug and drug-population interactions against openFDA drug labels with cited evidence | Generative APIs, Managed Inference, PostgreSQL + pgvector | Mistral Small 3.2 24B (agent + tool calling), Qwen3 Embedding 8B (embeddings) |
 
-A Scaleway account with API keys is required to run the showcases. [Register for a free Scaleway account](https://account.scaleway.com/register) to get free credits.
+A Scaleway account with API keys is required to run the showcases. [Register for a free Scaleway account](https://account.scaleway.com/register), company accounts get 100 EUR of credits to test the platform.
 
 ## Architecture
 
@@ -110,21 +112,21 @@ Medications + population -> [Generative APIs](https://www.scaleway.com/en/docs/g
 
 One-time bootstrap required before any `tofu` commands work. Skip if you already have an account, an API key, and know your Organization + Project IDs.
 
-1. **Create an account** at [account.scaleway.com/register](https://account.scaleway.com/register) and validate a payment method — GPU quotas require it.
+1. **Create an account** at [account.scaleway.com/register](https://account.scaleway.com/register) and validate a payment method, GPU quotas require it.
 
-2. **Create a project** (recommended) — Console → top-left project dropdown → **+ Create project** (e.g. `medical-lab`). Resources will be namespaced under this project and can be torn down cleanly later.
+2. **Create a project** (recommended), Console > top-left project dropdown > **+ Create project** (e.g. `medical-lab`). Resources will be namespaced under this project and can be torn down cleanly later.
 
-3. **Generate an API key** — Console → top-right avatar → **IAM** → **API Keys** → **Generate API key**:
-   - **Bearer:** *Myself (IAM user)* — simplest for solo setups
+3. **Generate an API key**, Console > top-right avatar > **IAM** > **API Keys** > **Generate API key**:
+   - **Bearer:** *Myself (IAM user)*, simplest for solo setups
    - **Description:** `tofu-bootstrap`
    - **Expiration:** 1 year (rotate or shorten as you prefer)
-   - **Object Storage preferred project:** *No, skip* — Terraform sets up buckets explicitly
-   - Click **Generate** → copy both **Access Key** (`SCW...`) and **Secret Key** (UUID). The secret is shown **once only**.
+   - **Object Storage preferred project:** *No, skip*, Terraform sets up buckets explicitly
+   - Click **Generate** > copy both **Access Key** (`SCW...`) and **Secret Key** (UUID). The secret is shown **once only**.
 
 4. **Copy your IDs:**
-   - **Organization ID** → Console → **IAM** → top of the page, click the copy icon
-   - **Project ID** → Console → **Project Dashboard** → **Settings** → Project ID
-   - (On brand-new accounts these may be the same UUID — Scaleway sometimes seeds the default project with the org ID.)
+   - **Organization ID** > Console > **IAM** > top of the page, click the copy icon
+   - **Project ID** > Console > **Project Dashboard** > **Settings** > Project ID
+   - (On brand-new accounts these may be the same UUID, Scaleway sometimes seeds the default project with the org ID.)
 
 5. **Paste the four values** into:
 
@@ -136,16 +138,16 @@ One-time bootstrap required before any `tofu` commands work. Skip if you already
    project_id      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # step 4
    ```
 
-   **`workshop/infrastructure/terraform.tfvars`** (only if running the workshop track — same four credentials, plus `ssh_public_key` from `cat ~/.ssh/id_ed25519.pub`).
+   **`workshop/infrastructure/terraform.tfvars`** (only if running the workshop track, same four credentials, plus `ssh_public_key` from `cat ~/.ssh/id_ed25519.pub`).
 
-   Resource names are auto-derived from `project_id` (first 8 chars) — no manual naming needed.
+   Resource names are auto-derived from `project_id` (first 8 chars), no manual naming needed.
 
-6. **Request quotas** (new accounts start with 0 GPU capacity). Console → **Support → Account → Quotas**, request:
+6. **Request quotas** (new accounts start with 0 GPU capacity). Console > **Support > Account > Quotas**, request:
    - L4-1-24G GPU instances: **1**
    - Managed Inference L4 dedicated deployments: **1**
    - Public Load Balancer, Public Gateway, DB-DEV-S: **1** each
 
-   Some accounts get auto-granted — try `tofu apply` first; if it fails with a quota error, open the ticket. GPU approvals typically take 1-2 business days.
+   Some accounts get auto-granted, try `tofu apply` first; if it fails with a quota error, open the ticket. GPU approvals typically take 1-2 business days.
 
 ## Quick start
 
@@ -173,7 +175,7 @@ bash workshop/scripts/destroy.sh     # tears down everything
 
 ### TLS / domain name
 
-By default, `domain_name` is empty and the lab auto-generates a free HTTPS domain using [sslip.io](https://sslip.io/) — a public DNS service that maps any IP address to a hostname (e.g. `<your-lb-ip-with-dashes>.sslip.io`). Let's Encrypt issues a certificate automatically. No DNS configuration needed.
+By default, `domain_name` is empty and the lab auto-generates a free HTTPS domain using [sslip.io](https://sslip.io/), a public DNS service that maps any IP address to a hostname (e.g. `<your-lb-ip-with-dashes>.sslip.io`). Let's Encrypt issues a certificate automatically. No DNS configuration needed.
 
 To use a custom domain instead, set `domain_name` in your `terraform.tfvars`:
 

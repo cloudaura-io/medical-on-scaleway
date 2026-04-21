@@ -58,6 +58,7 @@ variable "workshop_repo_url" {
 }
 
 variable "ssh_public_key" {
-  description = "SSH public key (e.g. contents of ~/.ssh/id_ed25519.pub) installed on the instance for the root user."
+  description = "Optional SSH public key (e.g. contents of ~/.ssh/id_ed25519.pub). When empty (default), no SSH key is registered and the workshop is accessed via HTTPS only. Set this if you want admin SSH access to the instance."
   type        = string
+  default     = ""
 }

@@ -1,13 +1,14 @@
-# Scaleway Medical AI Lab - Example Variables
-# Copy this file to terraform.tfvars and fill in your values (OpenTofu uses the same file names):
+# Scaleway Medical AI Lab — credentials
+# See QUICKSTART.md for a step-by-step walkthrough.
+#
+# Copy this file, then fill in the four values below:
 #   cp terraform.tfvars.example terraform.tfvars
 
-access_key      = "SCWXXXXXXXXXXXXXXXXX"
-secret_key      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-organization_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-project_id      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+access_key      = "SCWXXXXXXXXXXXXXXXXX"                   # console.scaleway.com/iam  →  API keys  →  Generate
+secret_key      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # shown once, alongside the access key
+organization_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # console.scaleway.com/organization  →  Copy ID
+project_id      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"   # Project Dashboard  →  Copy ID
 
-# Custom domain name (optional).
-# When set: uses your domain for TLS (requires a DNS A record pointing to the LB IP).
-# When empty (default): auto-generates a sslip.io domain from the LB IP for free TLS.
+# Optional — custom domain for TLS (requires a DNS A record pointing at the LB IP).
+# Leave commented out to auto-generate a free sslip.io domain from the LB IP.
 # domain_name = "lab.example.com"

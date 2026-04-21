@@ -7,30 +7,54 @@ and Mistral Small 3.2 on Scaleway Generative APIs.
 
 ## Prerequisites
 
-- A Scaleway account with an API key (access key + secret key)
+- A Scaleway account with payment validated
 - `tofu` (OpenTofu) installed locally
-- `ssh` available (for connecting to the provisioned instance)
 - A modern web browser
 
 ## Quick Start (Pre-Session)
 
+Everything you need to paste into `terraform.tfvars` comes from one place in
+the Scaleway console (IAM -> API Keys -> Generate API key):
+
+| Value | Where to get it |
+|---|---|
+| `access_key` | Shown in the "Generate API key" dialog (starts with `SCW...`) |
+| `secret_key` | Shown ONCE in the same dialog, copy it before closing |
+| `organization_id` | IAM page header |
+| `project_id` | Project dashboard -> Settings (often equals `organization_id` on new accounts) |
+
+### Quotas to request before the session
+
+Default quotas on a fresh Scaleway organization block a multi-student
+workshop run. Open a support ticket at **Console -> Support -> Quotas**
+and request:
+
+- `cp_servers_type_PRO2_XXS`: raise to `15` (one VM per student)
+- `rdb_instances` (Managed Database for PostgreSQL): raise to `15` (one per
+  student, provisioned live from notebook 03)
+
+Approval is typically same-day for paid accounts. A single student / test
+run works without any quota bumps.
+
+### Deploy
+
 ```bash
 cd workshop/infrastructure
 
-# Copy and fill in your Scaleway credentials
 cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your credentials
+# Edit terraform.tfvars: paste the 4 values from the table above.
 
 tofu init
 tofu apply
 ```
 
-After ~10 minutes, OpenTofu outputs a `jupyter_url`. Click it to open JupyterLab
-in your browser. The first notebook (`00_setup.ipynb`) opens automatically.
+After ~10 minutes, OpenTofu outputs a `jupyter_url`. Click it to open
+JupyterLab in your browser. The first notebook (`00_setup.ipynb`) opens
+automatically.
 
-**Security note:** The instance uses scoped IAM credentials (not your admin key).
-OpenTofu creates a dedicated IAM application with only the permissions the
-workshop needs (ObjectStorage, RelationalDatabases, GenerativeAPIs).
+**Security note:** The instance uses scoped IAM credentials (not your admin
+key). OpenTofu creates a dedicated IAM application with only the permissions
+the workshop needs (ObjectStorage, RelationalDatabases, GenerativeAPIs).
 The API key expires in 48 hours and is destroyed with `tofu destroy`.
 
 ## What You Will Build
