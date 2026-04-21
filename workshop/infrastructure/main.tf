@@ -34,7 +34,7 @@ locals {
   project_suffix   = substr(var.project_id, 0, 8)
   name_prefix      = "workshop-${local.project_suffix}"
   common_tags      = ["workshop", "medical-lab", local.project_suffix]
-  sslip_domain     = "${replace(scaleway_instance_ip.workshop.address, ".", "-")}.sslip.io"
+  sslip_domain     = "${scaleway_instance_ip.workshop.address}.sslip.io"
   effective_domain = var.domain_name != "" ? var.domain_name : local.sslip_domain
 }
 
