@@ -90,7 +90,7 @@ runcmd:
       su - jupyter -c "git clone ${workshop_repo_url} /home/jupyter/repo"
       ln -sf /home/jupyter/repo/workshop /home/jupyter/workshop
     else
-      mkdir -p /home/jupyter/workshop/notebooks /home/jupyter/workshop/notebooks_solutions /home/jupyter/workshop/data /home/jupyter/workshop/iac_snippets /home/jupyter/workshop/src /home/jupyter/workshop/scripts
+      mkdir -p /home/jupyter/workshop/notebooks /home/jupyter/workshop/data /home/jupyter/workshop/iac_snippets /home/jupyter/workshop/src /home/jupyter/workshop/scripts
     fi
 
   # -- Copy .env to workshop directory -----------------------------------------

@@ -262,25 +262,9 @@
         var source = document.createElement('div');
         source.className = 'finding-card__source';
 
-        // Prefer the backend-provided source_url (knows whether it's set_id
-        // vs application_number). Otherwise derive: ANDA*/NDA*/BLA* are
-        // application numbers, anything else is treated as a set_id.
-        var url = finding.source_url || '';
-        if (!url) {
-          var parts = finding.source_id.split(' :: ');
-          var citationId = parts.length >= 3 ? parts[2].trim() : '';
-          if (citationId) {
-            var field = /^(ANDA|NDA|BLA)\d+/i.test(citationId)
-              ? 'openfda.application_number'
-              : 'openfda.set_id';
-            url = 'https://api.fda.gov/drug/label.json?search=' +
-                  field + ':' + encodeURIComponent(citationId);
-          }
-        }
-
-        if (url) {
+        if (finding.label_url) {
           var link = document.createElement('a');
-          link.href = url;
+          link.href = finding.label_url;
           link.target = '_blank';
           link.rel = 'noopener';
           link.textContent = finding.source_id;

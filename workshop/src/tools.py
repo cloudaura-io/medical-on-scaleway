@@ -14,7 +14,8 @@ import json
 import logging
 from typing import Any
 
-from workshop.src.rag import similarity_search
+from .chunker import DAILYMED_LABEL_BASE_URL
+from .rag import similarity_search
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +232,7 @@ class ToolKit:
 
         Returns:
             Structured JSON: severity-first ordered list of claims, each
-            with source_id and evidence_snippet.
+            with source_id, evidence_snippet, and label_url.
         """
         findings_text = json.dumps(findings, indent=2)
 
@@ -275,6 +276,14 @@ class ToolKit:
                     }
                     for f in findings
                 ]
+
+        for item in result:
+            if not isinstance(item, dict):
+                continue
+            parts = [p.strip() for p in (item.get("source_id") or "").split("::")]
+            set_id = parts[2] if len(parts) >= 3 else ""
+            if set_id:
+                item["label_url"] = f"{DAILYMED_LABEL_BASE_URL}{set_id}"
 
         return result
 
@@ -402,6 +411,7 @@ TOOL_DEFINITIONS = [
                                 "claim": {"type": "string"},
                                 "source_id": {"type": "string"},
                                 "evidence_snippet": {"type": "string"},
+                                "label_url": {"type": "string"},
                                 "severity": {"type": "string"},
                                 "source_section_type": {"type": "string"},
                             },

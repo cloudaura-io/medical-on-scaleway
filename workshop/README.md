@@ -30,7 +30,7 @@ in your browser. The first notebook (`00_setup.ipynb`) opens automatically.
 
 **Security note:** The instance uses scoped IAM credentials (not your admin key).
 OpenTofu creates a dedicated IAM application with only the permissions the
-workshop needs (ObjectStorage, RelationalDatabases, Inference, GenerativeAPIs).
+workshop needs (ObjectStorage, RelationalDatabases, GenerativeAPIs).
 The API key expires in 48 hours and is destroyed with `tofu destroy`.
 
 ## What You Will Build
@@ -39,15 +39,15 @@ By the end of the workshop, you will have run end-to-end:
 
 1. **Made your first Mistral API call** on Scaleway Generative APIs
 2. **Explored real FDA drug label data** (openFDA Structured Product Labeling)
-3. **Provisioned 3 Scaleway resources live from Jupyter** (Object Storage,
-   Managed PostgreSQL + pgvector, Managed Inference with BGE embeddings)
+3. **Provisioned 2 Scaleway resources live from Jupyter** (Object Storage,
+   Managed PostgreSQL + pgvector) and called BGE embeddings via Scaleway
+   Generative APIs (serverless)
 4. **Built a RAG knowledge base** of section-typed drug label chunks with
    metadata-rich pgvector embeddings
 5. **Tested 5 agent tools** (search_drug_kb, lookup_interactions,
    lookup_population_warnings, flag_severity, summarize_evidence)
 6. **Ran a ReAct agent** that iterates through Think -> Act -> Observe,
    producing severity-first, fully-cited drug interaction reports
-7. **Deployed a Gradio demo app** wrapping the agent
 
 ## Access Model
 
@@ -61,7 +61,7 @@ By the end of the workshop, you will have run end-to-end:
 - Token-based JupyterLab authentication (random 32-char token)
 - HTTP via Caddy reverse proxy (HTTPS with Let's Encrypt if `domain_name` is configured)
 - Scoped IAM credentials on the instance (not admin keys), 48h expiry
-- Permissions limited to ObjectStorage, RelationalDatabases, Inference, GenerativeAPIs
+- Permissions limited to ObjectStorage, RelationalDatabases, GenerativeAPIs
 - IAM application and API key destroyed with `tofu destroy`
 - Adequate for a half-day workshop with public-domain data
 
@@ -72,13 +72,11 @@ By the end of the workshop, you will have run end-to-end:
 | 0:00 - 0:15 | Welcome, workshop mission, distribute JupyterLab URLs |
 | 0:15 - 0:25 | `00_setup`, `01_first_mistral_call` |
 | 0:25 - 0:50 | `02_openfda_explore`, `03_provision_pgvector_and_chunk` |
-| 0:50 - 0:55 | Kick off `04`, Managed Inference `tofu apply` starts |
-| 0:55 - 1:20 | **Instructor ReAct theory lecture** (during Managed Inference boot) |
-| 1:20 - 1:35 | Finish `04_embeddings_and_search` |
+| 0:50 - 1:20 | **Instructor ReAct theory lecture** |
+| 1:20 - 1:35 | `04_embeddings_and_search` (serverless, no provisioning wait) |
 | 1:35 - 1:45 | **Break** |
 | 1:45 - 2:00 | `05_tools` |
-| 2:00 - 2:20 | `06_react_agent` (baseline vs grounded comparison) |
-| 2:20 - 2:30 | `07_deploy_demo_app` + demos |
+| 2:00 - 2:30 | `06_react_agent` (baseline vs grounded comparison) |
 | 2:30 - 2:50 | **Q&A** |
 | 2:50 - 3:00 | `99_teardown` |
 | 3:00 - 4:00 | **Deep-dive Q&A, free exploration** |
@@ -92,9 +90,8 @@ Total active participant time: ~1h 40min (of which ~30min is infra waits).
 | Jupyter instance (PRO2-XXS) | ~6h | ~0.15 EUR |
 | Object Storage (<5 MB) | ~6h | negligible |
 | Managed PostgreSQL DB-DEV-S | ~3h | ~0.07 EUR |
-| Managed Inference L4 (BGE) | ~2-3h | ~1.90 EUR |
-| Generative APIs (Mistral) | full session | ~0.15 EUR |
-| **Total** | | **~2.3 EUR / student** |
+| Generative APIs (Mistral + BGE embeddings) | full session | ~0.20 EUR |
+| **Total** | | **~0.4 EUR / student** |
 
 ## openFDA Data Attribution
 
@@ -113,26 +110,23 @@ purposes only.
 
 ## Troubleshooting
 
-- **If you fall behind:** Switch to `notebooks_solutions/`. They contain
-  identical, runnable copies of every notebook.
 - **If a notebook fails:** Check that all previous notebooks ran successfully
   (they build on each other's state).
-- **If `tofu apply` stalls:** Infrastructure provisioning can take 5-20
-  minutes depending on the resource. Managed Inference is the slowest
-  (~15-20 min).
+- **If `tofu apply` stalls:** Infrastructure provisioning can take 5-10
+  minutes. PostgreSQL is the slowest in the workshop track (~5-8 min).
 - **If you see a certificate warning:** This is expected with self-signed
   TLS. Accept the warning to proceed.
 
 ## Teardown
 
 1. **From inside JupyterLab:** Run `99_teardown.ipynb` to destroy live-provisioned
-   resources (Managed Inference, PostgreSQL, Object Storage)
+   resources (PostgreSQL, Object Storage)
 2. **From your local machine:** Destroy the Jupyter instance:
    ```bash
    cd workshop/infrastructure && tofu destroy
    ```
 3. **Verify:** Check the Scaleway console. No resources matching your
-   student_id should remain.
+   project_suffix should remain.
 
 ## Optional: Restrict Access to Venue IP
 
@@ -151,10 +145,8 @@ workshop/
   iac_snippets/       Self-contained OpenTofu modules (driven from notebooks)
     object_storage/
     postgres/
-    managed_inference/
-  notebooks/          Workshop notebook sequence (00-07, 99)
-  notebooks_solutions/  Identical mirror for recovery
-  data/               Bundled openFDA labels dataset
+  notebooks/          Workshop notebook sequence (00-06, 99)
+  data/               Bundled openFDA labels dataset and diagrams
   scripts/            Dataset generation script
   src/                Shared Python modules (chunker, embeddings, rag, tools, react_loop)
 ```

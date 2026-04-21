@@ -29,21 +29,7 @@ CHUNKABLE_SECTIONS: list[str] = [
     "clinical_pharmacology",
 ]
 
-OPENFDA_LABEL_BASE_URL = "https://api.fda.gov/drug/label.json?search="
-
-
-def _build_source_url(set_id: str, application_number: str) -> str:
-    """Build a working openFDA label URL.
-
-    The 199-/200-label snapshot rarely populates `openfda.set_id` (post-2025
-    openFDA records often only carry `application_number`). Pick the field
-    that's actually populated so the citation link resolves to a real label.
-    """
-    if set_id:
-        return f"{OPENFDA_LABEL_BASE_URL}openfda.set_id:{set_id}"
-    if application_number:
-        return f"{OPENFDA_LABEL_BASE_URL}openfda.application_number:{application_number}"
-    return ""
+DAILYMED_LABEL_BASE_URL = "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid="
 
 
 def _extract_text(section_value: Any) -> str:
@@ -68,17 +54,16 @@ def _extract_metadata(label: dict[str, Any]) -> dict[str, str]:
             return val[0] if val else ""
         return str(val)
 
-    set_id = _first("set_id")
-    application_number = _first("application_number")
+    set_id = _first("spl_set_id")
 
     return {
         "drug_name": _first("generic_name"),
         "generic_name": _first("generic_name"),
         "brand_name": _first("brand_name"),
         "set_id": set_id,
-        "application_number": application_number,
+        "application_number": _first("application_number"),
         "manufacturer_name": _first("manufacturer_name"),
-        "source_url": _build_source_url(set_id, application_number),
+        "label_url": f"{DAILYMED_LABEL_BASE_URL}{set_id}",
     }
 
 
@@ -91,7 +76,7 @@ def chunk_label(label: dict[str, Any]) -> list[dict[str, Any]]:
     Returns:
         List of chunk dicts, each with: section_type, text, drug_name,
         generic_name, brand_name, set_id, application_number,
-        manufacturer_name, source_url.
+        manufacturer_name, label_url.
     """
     metadata = _extract_metadata(label)
     chunks: list[dict[str, Any]] = []

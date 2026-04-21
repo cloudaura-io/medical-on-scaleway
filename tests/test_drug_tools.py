@@ -46,7 +46,7 @@ def _warfarin_di_row():
         "set_id": "e98a2d84-c192-4d2a-b202-61a81b0c7dda",
         "application_number": "ANDA076807",
         "manufacturer_name": "Taro Pharmaceuticals",
-        "source_url": "https://api.fda.gov/drug/label.json?search=openfda.set_id:e98a2d84",
+        "label_url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=e98a2d84",
         "text": "Drugs that Increase Bleeding Risk: aspirin, ibuprofen, NSAIDs.",
         "distance": 0.12,
     }
@@ -62,7 +62,7 @@ def _ibuprofen_pregnancy_row():
         "set_id": "abc-def-123",
         "application_number": "NDA000001",
         "manufacturer_name": "Test Corp",
-        "source_url": "https://api.fda.gov/drug/label.json",
+        "label_url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=e98a2d84",
         "text": "Avoid use during third trimester of pregnancy due to risk of premature closure of the ductus arteriosus.",
         "distance": 0.15,
     }

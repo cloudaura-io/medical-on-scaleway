@@ -42,13 +42,13 @@ resource "random_password" "db_password" {
 }
 
 resource "scaleway_rdb_instance" "workshop" {
-  name           = "workshop-${var.student_id}-pg"
+  name           = "workshop-${var.project_suffix}-pg"
   node_type      = "DB-DEV-S"
   engine         = "PostgreSQL-16"
   is_ha_cluster  = false
   disable_backup = true
 
-  tags = ["workshop", "medical-lab", var.student_id]
+  tags = ["workshop", "medical-lab", var.project_suffix]
 }
 
 resource "scaleway_rdb_database" "workshop" {
@@ -61,4 +61,11 @@ resource "scaleway_rdb_user" "workshop" {
   name        = "workshop"
   password    = random_password.db_password.result
   is_admin    = true
+}
+
+resource "scaleway_rdb_privilege" "workshop" {
+  instance_id   = scaleway_rdb_instance.workshop.id
+  user_name     = scaleway_rdb_user.workshop.name
+  database_name = scaleway_rdb_database.workshop.name
+  permission    = "all"
 }

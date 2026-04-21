@@ -322,25 +322,20 @@ def _synthesize_findings(
                 continue
             drug = row.get("drug_name", "")
             section = row.get("section_type", "")
-            # openFDA snapshots vary: prefer set_id, fall back to application_number
-            citation_id = row.get("set_id") or row.get("application_number") or ""
+            set_id = row.get("set_id") or ""
             text = row.get("text", "") or ""
-            if not drug or not citation_id:
+            if not drug or not set_id:
                 continue
-            source_id = f"{drug} :: {section} :: {citation_id}"
+            source_id = f"{drug} :: {section} :: {set_id}"
             if source_id in seen_source_ids:
                 continue
             seen_source_ids.add(source_id)
             snippet = text[:240].strip()
-            # Pass through the chunker's source_url if present (it picks the
-            # right openFDA query field), otherwise the frontend will derive
-            # one from the citation_id.
-            source_url = row.get("source_url") or ""
             draft.append(
                 {
                     "claim": f"{drug}: {section.replace('_', ' ')} noted in FDA label.",
                     "source_id": source_id,
-                    "source_url": source_url,
+                    "label_url": row.get("label_url") or "",
                     "evidence_snippet": snippet,
                     "source_section_type": section,
                 }
@@ -361,19 +356,13 @@ def _enrich_findings(
     findings: list[dict[str, Any]],
     raw_observations: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Normalize source_id, attach a clickable openFDA URL, and verify each
-    evidence_snippet against the observation it cites.
+    """Attach the DailyMed label_url and verify each evidence_snippet against
+    the observation it cites.
 
-    Why: summarize_evidence produces source_ids with an empty trailing
-    segment when the openFDA chunk had no set_id, and occasionally emits
-    evidence_snippets that are paraphrased or synthesized across sources
-    (breaking the "every claim traces to one label section" guarantee).
-    This pass cross-references each finding against the observations
-    captured during the ReAct loop, swaps application_number in when
-    set_id is blank, builds the openFDA API URL the frontend renders as a
-    link, and marks verified=False (substituting a verbatim excerpt from
-    the cited section) whenever the model's snippet is not actually a
-    substring of that section's label text.
+    Cross-references each finding against the chunks retrieved during the
+    ReAct loop. When the model's snippet is not a substring of the cited
+    section's label text, substitutes a verbatim excerpt from that section
+    and marks ``verified=False`` so the frontend can flag it.
     """
     obs_by_key: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for entry in raw_observations:
@@ -400,7 +389,6 @@ def _enrich_findings(
         parts = [p.strip() for p in source_id.split("::")]
         drug = parts[0] if len(parts) > 0 else ""
         section = parts[1] if len(parts) > 1 and parts[1] else (copy.get("source_section_type") or "")
-        citation_id = parts[2] if len(parts) > 2 else ""
 
         rows = obs_by_key.get((drug.lower(), section), [])
 
@@ -416,18 +404,9 @@ def _enrich_findings(
             chosen = rows[0]
 
         if chosen is not None:
-            set_id = (chosen.get("set_id") or "").strip()
-            app_no = (chosen.get("application_number") or "").strip()
-            new_cid = set_id or app_no or citation_id
-            if drug and section and new_cid:
-                copy["source_id"] = f"{drug} :: {section} :: {new_cid}"
-
-            url = (chosen.get("source_url") or "").strip()
-            if not url and new_cid:
-                field = "openfda.application_number" if new_cid.startswith(("ANDA", "NDA", "BLA")) else "openfda.set_id"
-                url = f"https://api.fda.gov/drug/label.json?search={field}:{new_cid}"
-            if url:
-                copy["source_url"] = url
+            label_url = (chosen.get("label_url") or "").strip()
+            if label_url:
+                copy["label_url"] = label_url
 
             text = chosen.get("text") or ""
             if snippet_head and snippet_head in _norm(text):

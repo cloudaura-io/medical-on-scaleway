@@ -20,7 +20,7 @@ def _sample_label():
         "openfda": {
             "generic_name": ["WARFARIN SODIUM"],
             "brand_name": ["COUMADIN"],
-            "set_id": ["e98a2d84-c192-4d2a-b202-61a81b0c7dda"],
+            "spl_set_id": ["e98a2d84-c192-4d2a-b202-61a81b0c7dda"],
             "application_number": ["ANDA076807"],
             "manufacturer_name": ["Taro Pharmaceuticals"],
         },
@@ -68,7 +68,7 @@ class TestChunkLabel:
         assert "adverse_reactions" not in section_types
 
     def test_metadata_extraction(self) -> None:
-        """chunk_label extracts generic_name, brand_name, set_id, source_url."""
+        """chunk_label extracts generic_name, brand_name, set_id, label_url."""
         from src.drug_chunker import chunk_label
 
         label = _sample_label()
@@ -78,8 +78,9 @@ class TestChunkLabel:
             assert chunk["generic_name"] == "WARFARIN SODIUM"
             assert chunk["brand_name"] == "COUMADIN"
             assert chunk["set_id"] == "e98a2d84-c192-4d2a-b202-61a81b0c7dda"
-            assert "source_url" in chunk
-            assert chunk["source_url"].startswith("https://api.fda.gov/drug/label.json")
+            assert "label_url" in chunk
+            assert chunk["label_url"].startswith("https://dailymed.nlm.nih.gov/")
+            assert chunk["set_id"] in chunk["label_url"]
 
     def test_drug_name_field(self) -> None:
         """chunk_label sets drug_name from generic_name."""
