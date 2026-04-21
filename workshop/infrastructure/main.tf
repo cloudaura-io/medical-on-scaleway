@@ -84,6 +84,7 @@ resource "scaleway_iam_policy" "workshop" {
 # ---- SSH key ----------------------------------------------------------------
 
 resource "scaleway_iam_ssh_key" "workshop" {
+  count      = var.ssh_public_key == "" ? 0 : 1
   name       = "${local.name_prefix}-ssh"
   public_key = var.ssh_public_key
 }

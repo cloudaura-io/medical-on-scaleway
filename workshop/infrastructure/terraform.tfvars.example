@@ -4,13 +4,15 @@ secret_key      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 organization_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 project_id      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-# SSH public key (paste the contents of ~/.ssh/id_ed25519.pub)
-ssh_public_key = "ssh-ed25519 AAAA..."
+# Optional: SSH public key for admin access to the instance.
+# The workshop works over HTTPS only, SSH is only useful for debugging.
+# ssh_public_key = "ssh-ed25519 AAAA..."
 
-# Custom domain name (optional).
-# When set: uses your domain for TLS (requires DNS A record pointing at instance IP).
-# When empty (default): auto-generates a sslip.io domain for free TLS.
+# Optional: custom domain name for TLS.
+# When set: uses your domain (requires DNS A record pointing at the instance IP).
+# When empty (default): auto-generates a sslip.io hostname and gets free Let's Encrypt TLS.
 # domain_name = "workshop-student01.example.com"
 
-# Optional: public repo the JupyterLab VM git-clones on first boot; unset means JupyterLab boots empty with no workshop content.
+# Optional: public repo the JupyterLab VM git-clones on first boot.
+# Unset means JupyterLab boots empty with no workshop content.
 # workshop_repo_url = "https://github.com/cloudaura-io/medical-on-scaleway.git"
