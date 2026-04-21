@@ -2,6 +2,8 @@
 
 Workshop materials for a **[Scaleway](https://www.scaleway.com/) x [cloudaura.io](https://cloudaura.io/)** hands-on session on building healthcare AI applications. The lab demonstrates how to use Scaleway's sovereign European cloud infrastructure and [Mistral AI](https://mistral.ai/) models to solve real medical use cases: speech transcription, document understanding, and multi-domain research agents. All patient data stays in Europe, on infrastructure you control.
 
+> **Attending the workshop?** Follow the [**Workshop Quickstart**](QUICKSTART.md) for a step-by-step walkthrough — creating a project, generating an API key, SSH key, and filling in `workshop/infrastructure/terraform.tfvars` to spin up a per-student JupyterLab. (To deploy the showcases lab instead, see the [First-time Scaleway account setup](#first-time-scaleway-account-setup) section below.)
+
 ## What's in this repo
 
 Three self-contained showcase applications, each demonstrating a different Scaleway AI capability applied to healthcare:
@@ -12,7 +14,7 @@ Three self-contained showcase applications, each demonstrating a different Scale
 | 2 | **[Document Intelligence](https://github.com/cloudaura-io/medical-on-scaleway/tree/main/02_document_intelligence)** | Vision extraction on scanned medical documents, indexes them, answers questions with citations | Generative APIs, Managed Inference, PostgreSQL + pgvector, Object Storage | Mistral Small 3.2 24B (vision + answers), Qwen3 Embedding 8B (embeddings) |
 | 3 | **[Drug Interactions](https://github.com/cloudaura-io/medical-on-scaleway/tree/main/03_drug_interactions)** | ReAct agent that analyzes drug-drug and drug-population interactions against openFDA drug labels with cited evidence | Generative APIs, Managed Inference, PostgreSQL + pgvector | Mistral Small 3.2 24B (agent + tool calling), Qwen3 Embedding 8B (embeddings) |
 
-A Scaleway account with API keys is required to run the showcases. [Register for a free Scaleway account](https://account.scaleway.com/register) to get free credits.
+A Scaleway account with API keys is required to run the showcases. [Register for a free Scaleway account](https://account.scaleway.com/register) — company accounts get 100 EUR of credits to test the platform.
 
 ## Architecture
 
