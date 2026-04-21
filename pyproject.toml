@@ -29,7 +29,6 @@ ignore = [
 # Workshop notebooks: import ordering and top-of-cell rules don't apply
 # (cells need intermediate setup between imports)
 "workshop/notebooks/*.ipynb" = ["E402", "I001", "E741", "F401", "W293", "B905"]
-"workshop/notebooks_solutions/*.ipynb" = ["E402", "I001", "E741", "F401", "W293", "B905"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]

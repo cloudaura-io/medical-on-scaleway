@@ -71,7 +71,6 @@ resource "scaleway_iam_policy" "workshop" {
     permission_set_names = [
       "ObjectStorageFullAccess",
       "RelationalDatabasesFullAccess",
-      "InferenceFullAccess",
     ]
   }
 
