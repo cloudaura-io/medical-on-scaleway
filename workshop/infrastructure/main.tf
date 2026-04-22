@@ -21,15 +21,6 @@ terraform {
   }
 }
 
-provider "scaleway" {
-  access_key      = var.access_key
-  secret_key      = var.secret_key
-  organization_id = var.organization_id
-  project_id      = var.project_id
-  region          = var.region
-  zone            = var.zone
-}
-
 locals {
   project_suffix   = substr(var.project_id, 0, 8)
   name_prefix      = "workshop-${local.project_suffix}"
@@ -60,6 +51,10 @@ resource "scaleway_iam_api_key" "workshop" {
   application_id = scaleway_iam_application.workshop.id
   description    = "${local.name_prefix} jupyter API key"
   expires_at     = timeadd(timestamp(), "48h")
+
+  lifecycle {
+    ignore_changes = [expires_at]
+  }
 }
 
 resource "scaleway_iam_policy" "workshop" {
@@ -93,6 +88,7 @@ resource "scaleway_iam_ssh_key" "workshop" {
 
 resource "scaleway_instance_security_group" "workshop" {
   name                    = "${local.name_prefix}-sg"
+  project_id              = var.project_id
   inbound_default_policy  = "drop"
   outbound_default_policy = "accept"
 
@@ -120,16 +116,18 @@ resource "scaleway_instance_security_group" "workshop" {
 # ---- Public IP --------------------------------------------------------------
 
 resource "scaleway_instance_ip" "workshop" {
-  tags = local.common_tags
+  project_id = var.project_id
+  tags       = local.common_tags
 }
 
 # ---- Instance ---------------------------------------------------------------
 
 resource "scaleway_instance_server" "workshop" {
-  name  = "${local.name_prefix}-jupyter"
-  type  = var.instance_type
-  image = "ubuntu_jammy"
-  ip_id = scaleway_instance_ip.workshop.id
+  name       = "${local.name_prefix}-jupyter"
+  type       = var.instance_type
+  image      = "ubuntu_jammy"
+  ip_id      = scaleway_instance_ip.workshop.id
+  project_id = var.project_id
 
   security_group_id = scaleway_instance_security_group.workshop.id
 

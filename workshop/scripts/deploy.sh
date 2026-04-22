@@ -24,16 +24,18 @@ if [ ! -f "$TFVARS" ]; then
     echo -e "  ${CYAN}cp workshop/infrastructure/terraform.tfvars.example workshop/infrastructure/terraform.tfvars${NC}"
     echo ""
     echo "  Then fill in the required values:"
-    echo "    access_key       Scaleway API access key (SCW...)"
-    echo "    secret_key       Scaleway API secret key (UUID)"
     echo "    organization_id  Scaleway organization ID (UUID)"
     echo "    project_id       Scaleway project ID (UUID)"
+    echo ""
+    echo "  Provider credentials come from environment variables:"
+    echo "    export SCW_ACCESS_KEY=SCW..."
+    echo "    export SCW_SECRET_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
     echo ""
     echo "  See README.md 'First-time Scaleway account setup' for details."
     exit 1
 fi
 
-REQUIRED_VARS=(access_key secret_key organization_id project_id)
+REQUIRED_VARS=(organization_id project_id)
 MISSING=()
 
 for var in "${REQUIRED_VARS[@]}"; do
@@ -47,6 +49,9 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     fail "Missing or placeholder values in terraform.tfvars: ${MISSING[*]}
   Edit: $TFVARS"
 fi
+
+[ -n "${SCW_ACCESS_KEY:-}" ]  || fail "SCW_ACCESS_KEY not set. Export it: export SCW_ACCESS_KEY=SCW..."
+[ -n "${SCW_SECRET_KEY:-}" ]  || fail "SCW_SECRET_KEY not set. Export it: export SCW_SECRET_KEY=..."
 
 cd "$INFRA_DIR"
 

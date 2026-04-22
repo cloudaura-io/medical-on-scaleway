@@ -1,6 +1,6 @@
-# Scaleway credentials (get these from console.scaleway.com -> IAM -> API Keys)
-access_key      = "SCW..."
-secret_key      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# Scaleway credentials
+# Provider credentials (access_key, secret_key) are read from environment
+# variables SCW_ACCESS_KEY / SCW_SECRET_KEY, or set them below with -var flags.
 organization_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 project_id      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 

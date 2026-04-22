@@ -1,0 +1,17 @@
+# Scaleway credentials
+access_key      = "SCWxxxxxxxxxxxxxxxxx"
+secret_key      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+organization_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Region / Zone
+region = "fr-par"
+zone   = "fr-par-1"
+
+# Workshop sizing
+student_count  = 5
+student_prefix = "workshop-student"
+instance_type  = "PRO2-XXS"
+
+# Optional
+# workshop_repo_url = "https://github.com/cloudaura-io/medical-on-scaleway.git"
+# ssh_public_key    = "ssh-ed25519 AAAA..."

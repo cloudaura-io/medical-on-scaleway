@@ -4,18 +4,6 @@
 # terraform.tfvars file can be reused across both directories.
 ################################################################################
 
-variable "access_key" {
-  description = "Scaleway access key (SCW...)"
-  type        = string
-  sensitive   = true
-}
-
-variable "secret_key" {
-  description = "Scaleway secret key (UUID)"
-  type        = string
-  sensitive   = true
-}
-
 variable "organization_id" {
   description = "Scaleway organization ID (UUID)"
   type        = string
@@ -54,7 +42,7 @@ variable "instance_type" {
 variable "workshop_repo_url" {
   description = "Optional Git URL of the workshop repo. Cloud-init will git clone it into /home/jupyter/workshop if set. Leave empty to provision an empty directory you populate manually via rsync/scp."
   type        = string
-  default     = ""
+  default     = "https://github.com/cloudaura-io/medical-on-scaleway.git"
 }
 
 variable "ssh_public_key" {

@@ -32,7 +32,7 @@ workshop/**/*.tfstate
 workshop/**/*.tfstate.*
 workshop/**/.terraform.tfstate.lock.info
 workshop/**/terraform.tfvars
-workshop/**/*.auto.tfvars
+workshop/**/*.tfvars
 workshop/.env
 
 # OpenTofu / Terraform plan output and crash logs (never commit - binary
