@@ -48,9 +48,10 @@ resource "scaleway_iam_application" "workshop" {
 }
 
 resource "scaleway_iam_api_key" "workshop" {
-  application_id = scaleway_iam_application.workshop.id
-  description    = "${local.name_prefix} jupyter API key"
-  expires_at     = timeadd(timestamp(), "48h")
+  application_id     = scaleway_iam_application.workshop.id
+  description        = "${local.name_prefix} jupyter API key"
+  default_project_id = var.project_id
+  expires_at         = timeadd(timestamp(), "48h")
 
   lifecycle {
     ignore_changes = [expires_at]
